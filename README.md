@@ -5,13 +5,13 @@ A static site that finds your two senators and House representative from your ad
 ## Layout
 
 ```
-site/            the deployable site (no build step)
+docs/            the deployable site (no build step)
   index.html     page + styles
   app.js         UI: address lookup, member cards, checkboxes, copy button
   generate.js    pure message generator (email / call / meeting, short / long); works in Node too
   data.json      angles, ideology defaults, 535 members, state hooks (generated, don't hand-edit)
 scripts/
-  export_data.py         research spreadsheet (.xlsx) -> site/data.json
+  export_data.py         research spreadsheet (.xlsx) -> docs/data.json
   research_snapshot.xlsx copy of the research Sheet this data came from
 tests/
   smoke.js, kind.js      Playwright smoke tests against a local server
@@ -20,7 +20,7 @@ tests/
 ## Run locally
 
 ```
-cd site && python3 -m http.server 8000   # then open http://localhost:8000
+cd docs && python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
 Opening index.html as a `file://` page won't work, because the page has to `fetch("data.json")`.
@@ -29,7 +29,7 @@ Opening index.html as a `file://` page won't work, because the page has to `fetc
 
 1. Edit the research Sheet (tabs: Angles, Ideology defaults, Senate, House (120th), Governors, State hooks).
 2. Download it as .xlsx.
-3. Run `python3 scripts/export_data.py path/to/file.xlsx`. This rewrites `site/data.json`.
+3. Run `python3 scripts/export_data.py path/to/file.xlsx`. This rewrites `docs/data.json`.
 
 The exporter reads columns by header name, so renaming a header will break it.
 
@@ -47,7 +47,7 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 ## Hosting
 
-Any static host works: GitHub Pages, Netlify, Cloudflare Pages. Point it at `site/`.
+Any static host works: GitHub Pages, Netlify, Cloudflare Pages. Point it at `docs/` (GitHub Pages: Settings → Pages → Deploy from branch `main`, folder `/docs`).
 
 ## Ideas for next steps
 

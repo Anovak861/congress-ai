@@ -1,4 +1,4 @@
-"""Turn the research spreadsheet into site/data.json.
+"""Turn the research spreadsheet into docs/data.json.
 
 Usage:
     python3 scripts/export_data.py path/to/research.xlsx
@@ -60,4 +60,4 @@ def main(src, dest):
     print(f"{len(angles)} angles, {len(members)} members, {len(hooks)} states with hooks -> {dest}")
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else str(Path(__file__).resolve().parent.parent / "site" / "data.json"))
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else str(Path(__file__).resolve().parent.parent / "docs" / "data.json"))
