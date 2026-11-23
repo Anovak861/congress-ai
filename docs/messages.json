@@ -1,46 +1,119 @@
 {
-  "_about": "Hand-edited message copy (not generated). startChecked: which reasons begin checked. local: the state sentence, checked by default. responsibilities: optional sentence for members with leadership or committee roles, keyed by the member's name in data.json.",
+  "_about": "Hand-edited message copy (not generated). startChecked: which reasons begin checked. local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
   "startChecked": {
     "count": 3,
     "maxRecord": 2,
     "groups": {
-      "PROG": ["A03", "A07", "A10"],
-      "DEM": ["A01", "A02", "A14"],
-      "MODD": ["A04", "A14", "A26"],
-      "POPR": ["A03", "A07", "A08"],
-      "MAINR": ["A05", "A15", "A27"],
-      "LIBR": ["A16", "A17", "A20"],
-      "MODR": ["A04", "A19", "A11"],
-      "RELC": ["A09"]
+      "PROG": [
+        "A03",
+        "A07",
+        "A10"
+      ],
+      "DEM": [
+        "A01",
+        "A02",
+        "A14"
+      ],
+      "MODD": [
+        "A04",
+        "A14",
+        "A26"
+      ],
+      "POPR": [
+        "A03",
+        "A07",
+        "A08"
+      ],
+      "MAINR": [
+        "A05",
+        "A15",
+        "A27"
+      ],
+      "LIBR": [
+        "A16",
+        "A17",
+        "A20"
+      ],
+      "MODR": [
+        "A04",
+        "A26",
+        "A27"
+      ],
+      "RELC": [
+        "A09"
+      ]
     }
   },
   "local": {
-    "AZ": "Here in Arizona, Representatives Ansari and Grijalva are cosponsoring the Ban ASI Act.",
-    "CA": "Here in California, SB 53 has required transparency from frontier AI developers since January 2026, and a new state report recommends standby authority to cap recursive self-improvement. Please protect state laws like this from federal preemption.",
+    "AZ": {
+      "text": "Here in Arizona, Representatives Ansari and Grijalva are cosponsoring the Ban ASI Act. We should support them.",
+      "to": {
+        "Yassamin Ansari": "Here in Arizona, we're proud that two of our representatives are cosponsoring the Ban ASI Act. Thank you for being one of them, and please keep pushing for it.",
+        "Adelita Grijalva": "Here in Arizona, we're proud that two of our representatives are cosponsoring the Ban ASI Act. Thank you for being one of them, and please keep pushing for it."
+      }
+    },
+    "CA": {
+      "text": "Here in California, SB 53 has required transparency from frontier AI developers since January 2026, and a new state report recommends standby authority to cap recursive self-improvement.",
+      "preempt": "Please protect state laws like this from federal preemption."
+    },
     "CO": "Here in Colorado, the Colorado AI Act already sets rules for AI used in high-stakes decisions. States are acting, and Congress should too.",
-    "GA": "Here in Georgia, DeKalb County has paused new data centers, and a state bill would halt new permits until March 2027. Families here are worried about power bills.",
+    "GA": "Here in Georgia, DeKalb County has paused new data centers, and a state bill would halt new permits until March 2027. Georgians want AI to grow on terms we set.",
     "IL": "Here in Illinois, the AI Safety Act now requires annual independent audits of the largest frontier AI developers. That should be the national floor.",
     "IN": "Here in Indiana, Bloomington voted this month to ban superintelligence development until the state adopts a safety framework. Communities want limits, and Congress should set them nationally.",
-    "KS": "Here in Kansas, our governor-elect ran on a moratorium on new AI data centers. People here want a say in how far and how fast AI goes.",
-    "KY": "Here in Kentucky, the debate over an AI kill switch has come down to getting the facts first. Independent testing would give Congress those facts.",
-    "LA": "Here in Louisiana, Senator Kennedy wrote the AI Emergency Button Act and has warned on the Senate floor about AI that improves itself.",
+    "KS": "Here in Kansas, our governor-elect ran on a moratorium on new AI data centers. People here want a say in how fast AI goes.",
+    "LA": {
+      "text": "Here in Louisiana, Senator Kennedy wrote the AI Emergency Button Act and has warned on the Senate floor about AI that improves itself. Louisiana should be a leader on these issues.",
+      "to": {
+        "John Kennedy": "Here in Louisiana, we're proud of the AI Emergency Button Act and your warnings on the Senate floor about AI that improves itself. Thank you, and please keep making the case."
+      }
+    },
     "ME": "Here in Maine, the legislature voted for a moratorium on large data centers through November 2027. Mainers want AI to grow on terms we set.",
-    "MD": "Here in Maryland, lawmakers have weighed data center moratoriums, and Senator Van Hollen has led calls for a US–China pause and a ban on recursive self-improvement.",
-    "MA": "Here in Massachusetts, a frontier AI safety bill is before the legislature. Federal rules should set a floor, not wipe out state protections.",
+    "MD": {
+      "text": "Here in Maryland, lawmakers have weighed data center moratoriums, and Senator Van Hollen has led calls for a US–China pause and a ban on recursive self-improvement. Maryland should be a leader on these issues.",
+      "to": {
+        "Chris Van Hollen": "Here in Maryland, lawmakers have weighed data center moratoriums. Thank you for leading the call for a US–China pause and a ban on recursive self-improvement. Please keep pushing for both."
+      }
+    },
+    "MA": {
+      "text": "Here in Massachusetts, a frontier AI safety bill is before the legislature.",
+      "preempt": "Federal rules should set a floor, not wipe out state protections.",
+      "otherwise": "States are acting, and Congress should too."
+    },
     "MI": "Here in Michigan, the state Senate passed a chatbot age-verification bill, and a frontier AI bill is pending. Michiganders want guardrails.",
     "MN": "Here in Minnesota, a bill would pause new data centers over 100 megawatts. Minnesotans want AI to grow on terms we set.",
-    "MO": "Here in Missouri, the legislature sent the governor a ban on AI therapy chatbots, and Senator Hawley has led on holding AI companies accountable.",
+    "MO": {
+      "text": "Here in Missouri, the legislature sent the governor a ban on AI therapy chatbots, and Senator Hawley has led on holding AI companies accountable. Missourians want guardrails.",
+      "to": {
+        "Josh Hawley": "Here in Missouri, the legislature sent the governor a ban on AI therapy chatbots. Thank you for your work holding AI companies accountable, and please keep it up."
+      }
+    },
     "NH": "Here in New Hampshire, Governor Ayotte called for a data center moratorium and won re-election. Limits on AI are popular across party lines.",
     "NY": "Here in New York, the RAISE Act's frontier AI rules take effect on January 1, 2027, and the state has paused new large data centers for a year. Please make RAISE-style oversight the national standard.",
-    "NC": "Here in North Carolina, our senator-elect wants data centers to pay the full cost of their energy so families don't foot the bill.",
-    "OK": "Here in Oklahoma, lawmakers debated a data center moratorium this year. How fast AI grows matters here too.",
+    "NC": {
+      "text": "Here in North Carolina, our senator-elect wants data centers to pay the full cost of their energy so families don't foot the bill. North Carolinians want their representatives to step in when needed.",
+      "to": {
+        "Roy Cooper": "Here in North Carolina, thank you for saying data centers should pay the full cost of their energy so families don't foot the bill. Please keep standing up for us as AI grows."
+      }
+    },
+    "OK": "Here in Oklahoma, lawmakers debated a data center moratorium this year. We are invested in how fast AI grows.",
     "PA": "Here in Pennsylvania, bills would pause new data centers for three years and let towns say no to them. People want local control over AI's footprint.",
-    "SC": "Here in South Carolina, our senator-elect, a pediatrician, has called for a two-year pause on new data centers.",
-    "SD": "Here in South Dakota, lawmakers debated a one-year data center moratorium this year. How fast AI grows matters here too.",
-    "TX": "Here in Texas, our governor-elect campaigned on a data center moratorium, and Texans in Congress from both parties have introduced bills on superintelligence and an AI kill switch.",
-    "VT": "Here in Vermont, a bill would ban new data center projects through July 2030. Vermonters want a say before the AI build-out reaches us.",
-    "VA": "Here in Virginia, lawmakers are weighing a data center moratorium while the grid catches up. AI's growth is already straining our infrastructure.",
-    "WI": "Here in Wisconsin, Port Washington voters demanded a say on big incentives after a $15 billion AI campus was announced. People want accountability for what gets built."
+    "SC": {
+      "text": "Here in South Carolina, our senator-elect has called for a two-year pause on new data centers. We want to have a say in how fast AI grows.",
+      "to": {
+        "Annie Andrews": "Here in South Carolina, thank you for calling for a two-year pause on new data centers. We want a say in how fast AI grows, and we're counting on you to keep making that case."
+      }
+    },
+    "SD": "Here in South Dakota, lawmakers debated a one-year data center moratorium this year. We want to have a say in how fast AI grows.",
+    "TX": {
+      "text": "Here in Texas, our governor-elect campaigned on a data center moratorium, and Texans in Congress from both parties have introduced bills on superintelligence and an AI kill switch. Texans want a say in AI development.",
+      "to": {
+        "Greg Casar": "Here in Texas, our governor-elect campaigned on a data center moratorium. Thank you for introducing the Ban ASI Act. Please keep pushing for it, and keep working across the aisle with members like Representative Moran.",
+        "Nathaniel Moran": "Here in Texas, our governor-elect campaigned on a data center moratorium. Thank you for cosponsoring the AI Kill Switch Act. Please keep pushing for it, and keep working across the aisle with members like Representative Casar."
+      }
+    },
+    "VT": "Here in Vermont, a bill would ban new data center projects through July 2030. Vermonters want a say in how fast AI grows.",
+    "VA": "Here in Virginia, lawmakers are weighing a data center moratorium while the grid catches up. Virginians want a say in how fast AI grows.",
+    "WI": "Here in Wisconsin, Port Washington voters demanded a say on big incentives after a $15 billion AI campus was announced. People want accountability from AI companies."
   },
   "responsibilities": {
     "Chuck Schumer": "As the incoming majority leader, you decide which bills reach the Senate floor. Please make time for AI safety legislation.",
@@ -54,11 +127,7 @@
     "Josh Hawley": "As a member of the Judiciary and Homeland Security committees, you are in a position to hold AI companies accountable.",
     "Rand Paul": "As a leader on the Homeland Security and Governmental Affairs Committee, you can make sure Congress gets the facts on frontier AI.",
     "Jim Risch": "As a leader on the Foreign Relations Committee, you would shape any international agreement on advanced AI.",
-    "Roger Wicker": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat no military can patch.",
-    "Jack Reed": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat no military can patch.",
-    "Mike Lee": "As a leader on the Energy and Natural Resources Committee, you see how the AI race is straining our power supply.",
-    "Martin Heinrich": "As a leader on the Energy and Natural Resources Committee, you see how the AI race is straining our power supply.",
-    "Shelley Moore Capito": "As a leader on the Environment and Public Works Committee, you see what AI data centers demand of our power and water.",
-    "Sheldon Whitehouse": "As a leader on the Environment and Public Works Committee, you see what AI data centers demand of our power and water."
+    "Roger Wicker": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat.",
+    "Jack Reed": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat."
   }
 }

@@ -222,6 +222,7 @@ function selectMember(m) {
   S.start = G.startAngles(m, D.angles, S.policies, MSG.startChecked);
   S.angles = new Set(S.start);
   S.userEdited = false;
+  S.localEdited = false;
   [...$("cards").children].forEach((c, i) => c.setAttribute?.("aria-pressed", String(S.members[i] === m)));
   $("tip").innerHTML = `<b>Suggested approach for ${esc(shortName(m))}:</b> ${esc(m.ask)}.`;
   renderPolicies(); renderAngles(); renderLocal(); renderRole();
@@ -229,7 +230,8 @@ function selectMember(m) {
   render();
 }
 function renderPolicies() {
-  const help = { RSI: "Limits on AI that automates its own research and development.", OVS: "Licensed third-party testing, incident reports and an emergency off-switch.", PAUSE: "A verifiable agreement, including China, to pause the most advanced AI." };
+  const help = { RSI: "Limits on AI that automates its own research and development.", OVS: "Licensed third-party testing and an emergency off-switch.", PAUSE: "A verifiable agreement, including China, to pause the most advanced AI.",
+    PREEMPT: "Keep state AI safety laws in place as a floor, not a ceiling.", WHISTLE: "Protect AI workers who report danger, and report incidents within hours." };
   $("polBox").innerHTML = "<legend>What to ask for</legend>" + G.POLICY_ORDER.map(p =>
     `<label><input type="checkbox" data-p="${p}" ${S.policies[p] ? "checked" : ""}><span>${esc(G.POLICY_LABEL[p])}<small>${esc(help[p])}</small></span></label>`).join("");
 }
@@ -251,12 +253,22 @@ function renderAngles() {
   $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
     sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
 }
-function renderLocal() {
-  const line = MSG.local[S.state];
+// The state line: a thank-you version when it goes to the member it names, and some sentences
+// only when the preemption ask is checked (see messages.json).
+function localLine() {
+  const e = MSG.local[S.state];
+  if (!e || typeof e === "string") return e || "";
+  if (e.to?.[S.sel.name]) return e.to[S.sel.name];
+  const extra = S.policies.PREEMPT ? e.preempt : e.otherwise;
+  return [e.text, extra].filter(Boolean).join(" ");
+}
+// keepChoice: re-word the line after an ask changes, without undoing the checkbox or the user's own edits.
+function renderLocal(keepChoice) {
+  const line = localLine();
   $("localBox").classList.toggle("hidden", !line);
-  $("localOn").checked = !!line;
+  if (!keepChoice) $("localOn").checked = !!line;
   $("localLabel").textContent = `Add a point about ${G.STATE_NAMES[S.state] || "your state"}`;
-  $("localText").value = line || "";
+  if (!S.localEdited) $("localText").value = line;
 }
 function renderRole() {
   const line = MSG.responsibilities[S.sel.name];
@@ -360,9 +372,10 @@ function bind() {
   $("cards").addEventListener("click", e => { const c = e.target.closest(".card"); if (c && !c.disabled) selectMember(S.members[+c.dataset.i]); });
   document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener("change", e => { S.kind = e.target.value; render(); }));
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; render(); }));
-  $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); render(); });
+  $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
   ["localOn", "localText", "roleOn", "roleText"].forEach(id => $(id).addEventListener("input", render));
+  $("localText").addEventListener("input", () => { S.localEdited = true; });
   $("out").addEventListener("input", fitOut);
   $("subj").addEventListener("input", fitOut);
   ONE_COL.addEventListener?.("change", fitOut);

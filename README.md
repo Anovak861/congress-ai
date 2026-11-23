@@ -1,6 +1,6 @@
 # Contact Congress on AI
 
-A static site that finds your two senators and House representative from your address. It then drafts an email, a call script or an in-person meeting plan aimed at that member's ideology and AI record. You choose which asks to include (RSI limits, independent evaluators/oversight, an international pause) and which arguments to use.
+A static site that finds your two senators and House representative from your address. It then drafts an email, a call script or an in-person meeting plan aimed at that member's ideology and AI record. You choose which asks to include (RSI limits, independent evaluators/oversight, an international pause, protecting state AI laws from preemption, whistleblower protections) and which arguments to use.
 
 ## Layout
 
@@ -38,8 +38,8 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 ## Message copy (docs/messages.json)
 
-- `startChecked`: each message starts with `count` reasons checked: up to `maxRecord` that tie to the member's own record (★), then the member's group list in order. The RELC overlay takes the last slot. Every checked reason goes into the message.
-- `local`: one sentence per state. It starts checked; states without one get no local point.
+- `startChecked`: each message starts with `count` reasons checked: up to `maxRecord` that tie to the member's own record (★), then the member's group list in order. The RELC overlay takes the last slot. Every checked reason goes into the message, with its sentence for each checked ask; a sentence shared by several asks is used once. The preemption and whistleblower asks have no reasons of their own.
+- `local`: one line per state. It starts checked; states without one get no local point. A line is either a string or `{text, preempt, otherwise, to}`: `preempt` is added only when the preemption ask is checked (`otherwise` when it isn't), and `to` gives a thank-you version, keyed by member name, used when the message goes to the member the line names.
 - `responsibilities`: an optional sentence for members with leadership or committee roles, keyed by name. It shows a "Reference responsibilities" checkbox. Call scripts reword it about the member ("Senator X decides").
 
 ## Contacts (docs/contacts.json)

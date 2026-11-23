@@ -1,10 +1,14 @@
 // Message builder: pure functions, no DOM. Works in the browser (window.Gen) and in Node (require).
 (function (root) {
-  const POLICY_ORDER = ["RSI", "OVS", "PAUSE"];
+  const POLICY_ORDER = ["RSI", "OVS", "PAUSE", "PREEMPT", "WHISTLE"];
+  // Reasons (angles) have a sentence for these asks only; the other asks carry no reasons of their own.
+  const LINE_POLICIES = ["RSI", "OVS", "PAUSE"];
   const POLICY_LABEL = {
     RSI: "Restrict recursive self-improvement",
     OVS: "Independent evaluators & oversight",
     PAUSE: "International pause",
+    PREEMPT: "Protect state AI laws from preemption",
+    WHISTLE: "Whistleblower protections & incident reporting",
   };
   const STATE_NAMES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
 
@@ -13,13 +17,16 @@
   // What we ask for, worded per policy. Republicans get "verifiable, mutual" framing on the pause.
   function askText(p, m) {
     if (p === "RSI") return "support legislation restricting recursive self-improvement (AI systems that automate their own research and development) until it can be shown to be safe";
-    if (p === "OVS") return "require independent, licensed evaluators to test the most powerful AI systems, with incident reporting and a working emergency shutdown";
+    if (p === "OVS") return "require independent, licensed evaluators to test the most powerful AI systems, with a working emergency shutdown";
+    if (p === "PREEMPT") return "oppose federal preemption of state AI safety laws, so state rules like those in California, New York and Illinois stay in place as a floor, not a ceiling";
+    if (p === "WHISTLE") return "protect employees of AI companies who report safety risks, and require serious AI incidents to be reported within hours, not weeks";
     return isRepublican(m)
       ? "push for a verifiable, mutual agreement with China and other AI powers to pause the most advanced AI development while safety work catches up"
       : "push for a verifiable international agreement, including China, to pause the most advanced AI development while safety work catches up";
   }
   function askShort(p) {
-    return { RSI: "limits on AI that improves itself", OVS: "independent safety testing of frontier AI", PAUSE: "a verifiable international pause on the most advanced AI" }[p];
+    return { RSI: "limits on AI that improves itself", OVS: "independent safety testing of frontier AI", PAUSE: "a verifiable international pause on the most advanced AI",
+      PREEMPT: "protecting state AI safety laws from federal preemption", WHISTLE: "protections for AI whistleblowers" }[p];
   }
 
   function lastName(name) {
@@ -42,26 +49,33 @@
 
   // Default policy boxes for a member.
   function defaultPolicies(m) {
-    const p = { RSI: true, OVS: true, PAUSE: true };
+    const p = { RSI: true, OVS: true, PAUSE: true, PREEMPT: false, WHISTLE: false };
     if (isRepublican(m) && !/PROG/.test(m.tag)) p.PAUSE = false;
     return p;
   }
 
-  // Pick the script line an angle should contribute, given the chosen policies.
+  // The first sentence an angle has for the chosen asks (used to tell whether a reason applies at all).
   function angleLine(angle, policies) {
-    for (const p of POLICY_ORDER) {
+    for (const p of LINE_POLICIES) {
       if (policies[p] && angle.policies.includes(p) && angle.lines[p]) return { policy: p, text: angle.lines[p] };
     }
     return null;
   }
   function angleUsable(angle, policies) { return !!angleLine(angle, policies); }
 
+  // Each checked reason adds its sentence for every checked ask, in ask order. A sentence that appears
+  // under more than one ask (or more than one reason) is used once.
   function pickLines(angles, chosenIds, policies, n) {
     const byId = Object.fromEntries(angles.map(a => [a.id, a]));
-    const out = [];
+    const out = [], seen = new Set();
     for (const id of chosenIds) {
       const a = byId[id]; if (!a) continue;
-      const l = angleLine(a, policies); if (l && !out.some(o => o.text === l.text)) out.push({ id, name: a.name, ...l });
+      const parts = [];
+      for (const p of LINE_POLICIES) {
+        const t = policies[p] && a.policies.includes(p) && (a.lines[p] || "").trim();
+        if (t && !seen.has(t)) { seen.add(t); parts.push(t); }
+      }
+      if (parts.length) out.push({ id, name: a.name, text: parts.join(" ") });
       if (n && out.length >= n) break;
     }
     return out;
@@ -227,6 +241,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
+  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);
