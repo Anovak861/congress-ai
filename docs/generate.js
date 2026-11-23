@@ -62,9 +62,37 @@
     for (const id of chosenIds) {
       const a = byId[id]; if (!a) continue;
       const l = angleLine(a, policies); if (l && !out.some(o => o.text === l.text)) out.push({ id, name: a.name, ...l });
-      if (out.length >= n) break;
+      if (n && out.length >= n) break;
     }
     return out;
+  }
+
+  // Which reasons start checked: up to cfg.maxRecord that tie to the member's own record,
+  // then the group's list (RELC overlay takes the last slot), then the member's other defaults.
+  function startAngles(m, angles, policies, cfg) {
+    const byId = Object.fromEntries(angles.map(a => [a.id, a]));
+    const ok = id => byId[id] && angleUsable(byId[id], policies);
+    const out = [];
+    for (const id of m.specific || []) if (out.length < cfg.maxRecord && ok(id) && !out.includes(id)) out.push(id);
+    const [base, ...over] = (m.tag || "").split("+");
+    let list = [...(cfg.groups[base] || [])];
+    if (over.includes("RELC") && cfg.groups.RELC) list = [...list.slice(0, cfg.count - 1), ...cfg.groups.RELC, ...list.slice(cfg.count - 1)];
+    for (const id of [...list, ...(m.angles || [])]) {
+      if (out.length >= cfg.count) break;
+      if (ok(id) && !out.includes(id)) out.push(id);
+    }
+    return out;
+  }
+
+  // Role sentences are written to the member ("you"); call scripts speak to staff about them.
+  function aboutMember(line, hon) {
+    const verbs = { are: "is", know: "knows", decide: "decides", can: "can", would: "would", see: "sees", have: "has" };
+    let done = false;
+    return line.replace(/\byour\b|\byou (are|know|decide|can|would|see|have)\b/g, (w, v) => {
+      if (done) return v ? "they " + v : "their";
+      done = true;
+      return v ? hon + " " + verbs[v] : hon + "'s";
+    });
   }
 
   function who(u, m) {
@@ -80,7 +108,7 @@
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
-    const lines = pickLines(angles, angleIds, policies, long ? 5 : 2);
+    const lines = pickLines(angles, angleIds, policies);
     const subj = "Constituent request: " + listJoin(P.map(askShort));
     const out = [];
     out.push("Subject: " + subj[0].toUpperCase() + subj.slice(1));
@@ -93,7 +121,8 @@
     if (!P.length) out.push("[Choose at least one ask above.]");
     else if (P.length === 1) out.push(`I'm asking you to ${askText(P[0], m)}.`);
     else { out.push("I'm asking you to:"); P.forEach(p => out.push("- " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + ".")); }
-    if (lines.length) { out.push(""); out.push(long ? "Here is why this matters to me:" : "Why it matters:"); lines.forEach(l => out.push((long ? "- " : "") + l.text)); }
+    if (ctx.roleLine) { out.push(""); out.push(ctx.roleLine); }
+    if (lines.length) { out.push(""); out.push(long ? "Here is why this matters to me:" : "Why it matters:"); lines.forEach(l => out.push(long || lines.length > 2 ? "- " + l.text : l.text)); }
     if (localLine) { out.push(""); out.push(localLine); }
     if (u.note) { out.push(""); out.push(u.note); }
     out.push("");
@@ -109,17 +138,18 @@
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
-    const lines = pickLines(angles, angleIds, policies, long ? 3 : 1);
+    const lines = pickLines(angles, angleIds, policies);
     const hon = shortHon(m) + " " + lastName(m.name);
     const o = [];
-    o.push(long ? "CALL SCRIPT (about 1 minute)" : "CALL SCRIPT (about 20 seconds)");
+    o.push(long ? "CALL SCRIPT (1–2 minutes)" : "CALL SCRIPT (about a minute)");
     o.push("");
     o.push(`"Hi, my name is ${w.name} and I'm a constituent from ${w.place}.`);
     if (isAlly(m) && long) o.push(`First, thank you to ${hon} for taking the risks of advanced AI seriously.`);
     o.push(P.length ? `I'm calling to ask ${hon} to support ${listJoin(P.map(askShort))}.` : "[Choose at least one ask above.]");
+    if (ctx.roleLine) o.push(aboutMember(ctx.roleLine, hon));
     if (long && P.includes("RSI")) o.push("By that I mean AI systems that automate their own research and development, building the next generation faster than people can check it.");
     lines.forEach(l => o.push(l.text));
-    if (long && localLine) o.push(localLine);
+    if (localLine) o.push(localLine);
     if (long && u.note) o.push(u.note);
     o.push(`Can you tell me where ${hon} stands on this? Thank you."`);
     o.push("");
@@ -134,7 +164,9 @@
     }
     o.push("");
     o.push("HOW TO CALL");
-    o.push("- Capitol switchboard: (202) 224-3121. Ask for " + honorific(m) + " " + m.name + "'s office.");
+    o.push(ctx.phone
+      ? "- " + honorific(m) + " " + m.name + "'s Washington office: " + ctx.phone + "."
+      : "- Capitol switchboard: (202) 224-3121. Ask for " + honorific(m) + " " + m.name + "'s office.");
     o.push("- Calls are logged by issue and position, so short calls count. Ask for the staffer who covers technology or AI if you want to say more.");
     o.push("- Weekdays, 9am–5pm Eastern. Being polite and local matters more than being detailed.");
     return o.join("\n");
@@ -144,7 +176,7 @@
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
-    const lines = pickLines(angles, angleIds, policies, long ? 4 : 2);
+    const lines = pickLines(angles, angleIds, policies);
     const hon = honorific(m) + " " + lastName(m.name);
     const o = [];
     o.push("1. REQUEST THE MEETING");
@@ -158,6 +190,7 @@
     if (isAlly(m)) o.push("- Thanks (1 min): acknowledge their work on AI risk (see their record on this page) and ask them to keep leading.");
     o.push("- The ask (3 min):" + (P.length ? "" : " [choose an ask]"));
     P.forEach(p => o.push("    • " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + "."));
+    if (ctx.roleLine) o.push("    • Their role: " + aboutMember(ctx.roleLine, hon));
     o.push("- Why it matters (8 min):");
     lines.forEach(l => o.push("    • " + l.name + ": " + l.text));
     if (localLine) o.push("    • Local angle: " + localLine);
@@ -189,6 +222,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, isAlly, build, lastName, honorific };
+  const api = { POLICY_ORDER, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, isAlly, build, lastName, honorific };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -7,7 +7,7 @@ const G = window.Gen;
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
-let D = null;
+let D = null, CONTACTS = {}, MSG = { startChecked: { count: 3, maxRecord: 2, groups: {} }, local: {}, responsibilities: {} };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
 const store = {
@@ -160,7 +160,7 @@ async function lookup() {
     }
   } catch { failed = true; }
 
-  if (r?.state) return applyMatch(r.state, r.district, s?.label || r.matched || a, a);
+  if (r?.state) return applyMatch(r.state, r.district, s?.label || r.matched || a);
   if (s) {
     // Census is unreachable, but the suggestion still tells us the state, so the senators can be shown.
     if (!G.STATE_NAMES[s.state]) { setMsg("This tool covers the 50 states. DC and territories aren't included yet.", true); return; }
@@ -178,9 +178,8 @@ async function lookup() {
   } else setMsg("Couldn't match that address. Check it, or choose your state and district below.", true);
 }
 
-function applyMatch(st, dist, label, typed) {
+function applyMatch(st, dist, label) {
   if (!G.STATE_NAMES[st]) { setMsg("This tool covers the 50 states. DC and territories aren't included yet.", true); return; }
-  store.set("addr", typed);
   $("stateSel").value = st; fillDistricts(st);
   if (dist) $("distSel").value = String(dist);
   if (!dist && $("distSel").value) dist = parseInt($("distSel").value, 10);
@@ -201,77 +200,94 @@ function choose(st, dist) {
 }
 
 // ---------- Step 2: cards ----------
-function ideoName(tag) {
-  return tag.split("+").map(t => D.ideology[t]?.name?.replace(/ \(.*\)$/, "") || t).join(" · ");
-}
-function memberTitle(m) {
-  return m.chamber === "Senate" ? `Senator · ${m.state}` : `Representative · ${m.state}-${m.district}`;
-}
 function renderCards() {
   $("cards").innerHTML = S.members.map((m, i) => {
     const pending = /TBD/.test(m.party) || /TBD/.test(m.name);
     return `<button type="button" class="card" data-i="${i}" aria-pressed="${m === S.sel}" ${pending ? "disabled" : ""}>
       <span class="nm">${esc(m.name)}</span>
-      <span class="meta">${esc(memberTitle(m))} · ${esc(m.party)} · ${esc(m.status)}</span>
-      <span class="chips">${pending ? "" : `<span class="chip">${esc(ideoName(m.tag))}</span><span class="chip${m.confidence === "High" ? " hi" : ""}">${m.confidence === "High" ? "Strong AI record" : m.confidence === "Med" ? "Some AI record" : "Little AI record"}</span>`}</span>
-      <p>${esc(m.record)}</p></button>`;
+      <span class="meta">${m.chamber === "Senate" ? "Senator" : "Representative"}${pending ? "" : " · " + esc(m.party)}</span></button>`;
   }).join("") || `<p>No members found for that choice.</p>`;
 }
 
 // ---------- Step 3: builder ----------
+const memberKey = m => `${m.chamber}|${m.state}|${m.district ?? ""}|${m.name}`;
+const contactOf = m => CONTACTS[memberKey(m)] || null;
+const fmtPhone = p => (p || "").replace(/^(\d{3})-(\d{3})-(\d{4})$/, "($1) $2-$3");
+const shortName = m => `${G.honorific(m)} ${G.lastName(m.name)}`;
+
 function selectMember(m) {
   S.sel = m;
   S.policies = G.defaultPolicies(m);
-  S.angles = new Set(m.angles);
+  S.start = G.startAngles(m, D.angles, S.policies, MSG.startChecked);
+  S.angles = new Set(S.start);
   S.userEdited = false;
   [...$("cards").children].forEach((c, i) => c.setAttribute?.("aria-pressed", String(S.members[i] === m)));
-  $("tip").innerHTML = `<b>Suggested approach for ${esc(G.honorific(m))} ${esc(G.lastName(m.name))}:</b> ${esc(m.ask)}.` +
-    (D.ideology[m.tag.split("+")[0]]?.avoid ? ` <span style="color:var(--soft)">Avoid: ${esc(D.ideology[m.tag.split("+")[0]].avoid)}.</span>` : "");
-  renderPolicies(); renderAngles(); renderLocal();
+  $("tip").innerHTML = `<b>Suggested approach for ${esc(shortName(m))}:</b> ${esc(m.ask)}.`;
+  renderPolicies(); renderAngles(); renderLocal(); renderRole();
   $("s3").classList.remove("hidden");
   render();
 }
 function renderPolicies() {
   const help = { RSI: "Limits on AI that automates its own research and development.", OVS: "Licensed third-party testing, incident reports and an emergency off-switch.", PAUSE: "A verifiable agreement, including China, to pause the most advanced AI." };
   $("polBox").innerHTML = "<legend>What to ask for</legend>" + G.POLICY_ORDER.map(p =>
-    `<label><input type="checkbox" data-p="${p}" ${S.policies[p] ? "checked" : ""}><span>${esc(G.POLICY_LABEL[p])}<small>${esc(help[p])}</small></span></label>`).join("") +
-    (S.sel.party === "R" && !S.policies.PAUSE ? `<small style="color:var(--soft)">Pause is off by default for Republicans; if you add it, the wording stresses a verifiable deal that binds China.</small>` : "");
+    `<label><input type="checkbox" data-p="${p}" ${S.policies[p] ? "checked" : ""}><span>${esc(G.POLICY_LABEL[p])}<small>${esc(help[p])}</small></span></label>`).join("");
+}
+// Display order: the start-checked reasons, then the member's other suggestions, then everything else.
+function angleOrder() {
+  const m = S.sel, all = D.angles.map(a => a.id);
+  const sug = [...new Set([...S.start, ...m.angles])].filter(id => all.includes(id));
+  return { sug, rest: all.filter(id => !sug.includes(id)) };
 }
 function renderAngles() {
   const m = S.sel, spec = new Set(m.specific);
-  const ordered = [...m.angles, ...D.angles.map(a => a.id).filter(id => !m.angles.includes(id))];
   const byId = Object.fromEntries(D.angles.map(a => [a.id, a]));
   const row = id => {
     const a = byId[id]; if (!a) return "";
     const usable = G.angleUsable(a, S.policies);
-    return `<label class="${usable ? "" : "off"}" title="${esc(a.evidence)}"><input type="checkbox" data-a="${id}" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" aria-label="matches their record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
+    return `<label class="${usable ? "" : "off"}" title="${esc(a.evidence)}"><input type="checkbox" data-a="${id}" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" title="Ties to their own record" aria-label="ties to their own record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
   };
-  const sug = ordered.filter(id => m.angles.includes(id)), rest = ordered.filter(id => !m.angles.includes(id));
-  $("angBox").innerHTML = `<legend>Reasons to include</legend><small style="color:var(--soft)">Pre-checked for a ${esc(ideoName(m.tag).toLowerCase())}. ★ = ties to their own record. Short messages use the first two checked; long ones up to five.</small>` +
-    sug.map(row).join("") + `<details><summary style="cursor:pointer;padding:8px 0">More reasons (${rest.length})</summary>${rest.map(row).join("")}</details>`;
+  const { sug, rest } = angleOrder();
+  $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
+    sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
 }
 function renderLocal() {
-  const hooks = D.hooks[S.state] || [];
-  $("localBox").classList.toggle("hidden", !hooks.length);
-  if (hooks.length) { $("localOn").checked = false; $("localText").value = `Here in ${G.STATE_NAMES[S.state]}, ` + hooks[0].text; }
+  const line = MSG.local[S.state];
+  $("localBox").classList.toggle("hidden", !line);
+  $("localOn").checked = !!line;
+  $("localLabel").textContent = `Add a point about ${G.STATE_NAMES[S.state] || "your state"}`;
+  $("localText").value = line || "";
+}
+function renderRole() {
+  const line = MSG.responsibilities[S.sel.name];
+  $("roleBox").classList.toggle("hidden", !line);
+  $("roleOn").checked = false;
+  $("roleText").textContent = line || "";
 }
 function ctx() {
-  const order = [...S.sel.angles, ...D.angles.map(a => a.id).filter(id => !S.sel.angles.includes(id))].filter(id => S.angles.has(id));
+  const { sug, rest } = angleOrder();
   return {
-    m: S.sel, angles: D.angles, policies: S.policies, angleIds: order, long: S.long,
+    m: S.sel, angles: D.angles, policies: S.policies, angleIds: [...sug, ...rest].filter(id => S.angles.has(id)), long: S.long,
     u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), note: $("uNote").value.trim() },
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
+    roleLine: $("roleOn").checked ? $("roleText").textContent : "",
+    phone: fmtPhone(contactOf(S.sel)?.phone),
   };
 }
 function render() {
   if (!S.sel) return;
   $("out").value = G.build(S.kind, ctx());
-  const m = S.sel;
+  const m = S.sel, c = contactOf(m), who = esc(shortName(m));
+  const link = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+  if (!c) {
+    $("contact").innerHTML = `${who} takes office in January, so there's no office line or contact form yet. Until then, call the Capitol switchboard at <b><a href="tel:+12022243121">(202) 224-3121</a></b> and ask for ${who}'s office.`;
+    return;
+  }
+  const tel = `<b><a href="tel:+1${c.phone.replace(/\D/g, "")}">${esc(fmtPhone(c.phone))}</a></b>`;
   $("contact").innerHTML = S.kind === "call"
-    ? `Capitol switchboard: <b>(202) 224-3121</b>. Ask for ${esc(G.honorific(m))} ${esc(m.name)}.`
+    ? `Call ${who}'s Washington office: ${tel}.`
     : S.kind === "email"
-      ? `Congressional offices take email through a web form on the member's site. Find it via <a href="${m.chamber === "Senate" ? "https://www.senate.gov/senators/senators-contact.htm" : "https://www.house.gov/representatives/find-your-representative"}" target="_blank" rel="noopener">${m.chamber === "Senate" ? "senate.gov" : "house.gov"}</a>, then paste the text (the subject line goes in the subject field).`
-      : `Meeting requests go through the scheduling form on the member's website, reachable from <a href="${m.chamber === "Senate" ? "https://www.senate.gov/senators/senators-contact.htm" : "https://www.house.gov/representatives/find-your-representative"}" target="_blank" rel="noopener">${m.chamber === "Senate" ? "senate.gov" : "house.gov"}</a>.`;
+      ? `Send it through ${link(c.form, `${who}'s contact form`)}. Copy the text, then paste it there; the subject line goes in the subject field. Office phone: ${tel}.`
+      : `Request the meeting through ${link(c.site, `${who}'s website`)} or by calling ${tel}.`;
 }
 
 // ---------- events ----------
@@ -292,7 +308,7 @@ function bind() {
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; render(); }));
   $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
-  ["localOn", "localText"].forEach(id => $(id).addEventListener("input", render));
+  ["localOn", "localText", "roleOn"].forEach(id => $(id).addEventListener("input", render));
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
   $("copyBtn").addEventListener("click", async () => {
     const b = $("copyBtn");
@@ -305,9 +321,12 @@ function bind() {
 async function init() {
   fillStates(); bind();
   ["uName", "uCity", "uZip", "uNote"].forEach(id => { const v = store.get(id); if (v) $(id).value = v; });
-  const a = store.get("addr"); if (a) $("addr").value = a;
-  try { D = await (await fetch("data.json")).json(); }
-  catch { setMsg("Couldn't load member data. If you opened this file directly, serve the folder over http instead.", true); }
+  try { localStorage.removeItem("cc_addr"); } catch {} // older versions saved the address; it is no longer stored
+  const load = f => fetch(f).then(r => { if (!r.ok) throw new Error(f); return r.json(); });
+  try { D = await load("data.json"); }
+  catch { setMsg("Couldn't load member data. If you opened this file directly, serve the folder over http instead.", true); return; }
+  // Contacts and message copy are optional: without them the page still works with defaults.
+  [CONTACTS, MSG] = await Promise.all([load("contacts.json").catch(() => CONTACTS), load("messages.json").catch(() => MSG)]);
 }
 init();
 }
