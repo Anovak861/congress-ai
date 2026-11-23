@@ -62,7 +62,7 @@ function readDistrict(g = {}) {
 async function censusAddress(address) {
   const d = await jsonp(`${CENSUS}onelineaddress?${CENSUS_Q}&address=${encodeURIComponent(address)}`);
   const m = d?.result?.addressMatches?.[0];
-  return m ? { ...readDistrict(m.geographies), matched: m.matchedAddress } : null;
+  return m ? { ...readDistrict(m.geographies), matched: m.matchedAddress, lat: m.coordinates?.y, lon: m.coordinates?.x } : null;
 }
 async function censusPoint(lon, lat) {
   const d = await jsonp(`${CENSUS}coordinates?${CENSUS_Q}&x=${lon}&y=${lat}`);
@@ -160,6 +160,7 @@ async function lookup() {
     }
   } catch { failed = true; }
 
+  S.coords = s ? { lat: s.lat, lon: s.lon } : r?.lat != null ? { lat: r.lat, lon: r.lon } : null;
   if (r?.state) return applyMatch(r.state, r.district, s?.label || r.matched || a);
   if (s) {
     // Census is unreachable, but the suggestion still tells us the state, so the senators can be shown.
@@ -260,8 +261,8 @@ function renderLocal() {
 function renderRole() {
   const line = MSG.responsibilities[S.sel.name];
   $("roleBox").classList.toggle("hidden", !line);
-  $("roleOn").checked = false;
-  $("roleText").textContent = line || "";
+  $("roleOn").checked = !!line;
+  $("roleText").value = line || "";
 }
 function ctx() {
   const { sug, rest } = angleOrder();
@@ -269,25 +270,78 @@ function ctx() {
     m: S.sel, angles: D.angles, policies: S.policies, angleIds: [...sug, ...rest].filter(id => S.angles.has(id)), long: S.long,
     u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), note: $("uNote").value.trim() },
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
-    roleLine: $("roleOn").checked ? $("roleText").textContent : "",
+    roleLine: $("roleOn").checked ? $("roleText").value.trim() : "",
     phone: fmtPhone(contactOf(S.sel)?.phone),
   };
 }
 function render() {
   if (!S.sel) return;
-  $("out").value = G.build(S.kind, ctx());
-  const m = S.sel, c = contactOf(m), who = esc(shortName(m));
-  const link = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+  const c0 = ctx(), email = S.kind === "email";
+  $("out").value = G.build(S.kind, c0);
+  $("subjRow").classList.toggle("hidden", !email);
+  $("outCol").classList.toggle("has-subj", email);
+  if (email) $("subj").value = G.emailSubject(c0);
+  renderHowTo();
+  fitOut();
+}
+
+// Miles between two points (haversine), for sorting local offices.
+function miles(a, b) {
+  const r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLon = r(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 3959 * 2 * Math.asin(Math.sqrt(h));
+}
+function officeList(c, n) {
+  let offs = (c.offices || []).map(o => ({ ...o, mi: S.coords && o.lat != null ? miles(S.coords, o) : null }));
+  offs.sort((a, b) => (a.mi ?? 1e9) - (b.mi ?? 1e9) || a.city.localeCompare(b.city));
+  const li = o => `<li><b>${esc(o.city)}</b>${o.mi != null ? ` <span class="mi">· about ${o.mi < 1 ? "1" : Math.round(o.mi)} mi</span>` : ""}<br>${esc(o.address)}${o.zip ? ", " + esc(o.zip) : ""}${o.phone ? `<br>${telLink(o.phone)}` : ""}</li>`;
+  const shown = offs.slice(0, n), rest = offs.slice(n);
+  return offs.length ? `<ul class="offices">${shown.map(li).join("")}</ul>` +
+    (rest.length ? `<details><summary>${rest.length} more office${rest.length > 1 ? "s" : ""}</summary><ul class="offices">${rest.map(li).join("")}</ul></details>` : "") : "";
+}
+const telLink = (p, cls = "") => `<a class="${cls}" href="tel:+1${p.replace(/\D/g, "")}">${esc(fmtPhone(p))}</a>`;
+const ext = (href, text, cls = "") => `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+
+// The "how to send it" box: only the instructions for the chosen format.
+function renderHowTo() {
+  const m = S.sel, c = contactOf(m), who = esc(shortName(m)), box = $("howto");
   if (!c) {
-    $("contact").innerHTML = `${who} takes office in January, so there's no office line or contact form yet. Until then, call the Capitol switchboard at <b><a href="tel:+12022243121">(202) 224-3121</a></b> and ask for ${who}'s office.`;
+    box.innerHTML = `<h3>${S.kind === "email" ? "How to send it" : S.kind === "call" ? "Who to call" : "How to request a meeting"}</h3>
+      <p>${who} takes office in January 2027, so there's no office phone, contact form or meeting page yet. Until then, call the Capitol switchboard and ask for ${who}'s office.</p>
+      ${telLink("202-224-3121", "big")}`;
     return;
   }
-  const tel = `<b><a href="tel:+1${c.phone.replace(/\D/g, "")}">${esc(fmtPhone(c.phone))}</a></b>`;
-  $("contact").innerHTML = S.kind === "call"
-    ? `Call ${who}'s Washington office: ${tel}.`
-    : S.kind === "email"
-      ? `Send it through ${link(c.form, `${who}'s contact form`)}. Copy the text, then paste it there; the subject line goes in the subject field. Office phone: ${tel}.`
-      : `Request the meeting through ${link(c.site, `${who}'s website`)} or by calling ${tel}.`;
+  if (S.kind === "email") {
+    box.innerHTML = `<h3>How to send it</h3>
+      ${ext(c.form, `Open ${who}'s contact form ↗`, "big")}
+      <ol><li>Copy the subject below into the form's subject field.</li><li>Copy the message into the message field.</li><li>Fill in your name and home address. Offices only answer constituents, so the form asks for it.</li></ol>`;
+  } else if (S.kind === "call") {
+    const near = officeList(c, 1);
+    box.innerHTML = `<h3>Who to call</h3>
+      ${telLink(c.phone, "big")}
+      <p>${who}'s Washington office. Weekdays, 9am–5pm Eastern. If the line is busy, try a local office.</p>
+      ${near ? `<p class="sub">${S.coords ? "Nearest local office" : "Local offices"}</p>${near}` : ""}`;
+  } else {
+    const offices = officeList(c, 2);
+    box.innerHTML = `<h3>How to request a meeting</h3>
+      ${c.meeting
+        ? ext(c.meeting, `Open ${who}'s meeting request form ↗`, "big")
+        : ext(c.site, `Go to ${who}'s website ↗`, "big") + `<p>Look for "Meeting request" or "Schedule a meeting" under Contact or Services. You can also call the office: ${telLink(c.phone)}.</p>`}
+      <p>Ask for 20 minutes with ${who} or the staffer who covers technology and AI. A local office is the easiest place to start.</p>
+      ${offices ? `<p class="sub">${S.coords ? "Local offices, nearest first" : "Local offices"}</p>${offices}` : ""}`;
+  }
+}
+
+// On one-column layouts the message grows to fit its text; on desktop it scrolls inside a fixed-height panel.
+const ONE_COL = window.matchMedia("(max-width: 899px)");
+function fitOut() {
+  const o = $("out"), col = $("outCol"), sj = $("subj");
+  sj.style.height = ""; sj.style.height = sj.scrollHeight + 2 + "px";
+  o.style.height = "";
+  if (ONE_COL.matches) { o.style.height = o.scrollHeight + 2 + "px"; return; }
+  // Desktop: fill the rest of the viewport beside the options.
+  const other = col.offsetHeight - o.offsetHeight;
+  o.style.height = Math.max(320, innerHeight - other - 32) + "px";
 }
 
 // ---------- events ----------
@@ -299,7 +353,7 @@ function bind() {
   $("sugg").addEventListener("mousedown", e => e.preventDefault()); // keep focus in the input while clicking
   $("sugg").addEventListener("click", e => { const li = e.target.closest("li"); if (li) pick(+li.dataset.i); });
   $("stateSel").addEventListener("change", e => {
-    const st = e.target.value; fillDistricts(st); setMsg("");
+    const st = e.target.value; fillDistricts(st); setMsg(""); S.coords = null;
     if (st) choose(st, $("distSel").value ? parseInt($("distSel").value, 10) : null);
   });
   $("distSel").addEventListener("change", e => { if (S.state) choose(S.state, parseInt(e.target.value, 10)); });
@@ -308,14 +362,18 @@ function bind() {
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; render(); }));
   $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
-  ["localOn", "localText", "roleOn"].forEach(id => $(id).addEventListener("input", render));
+  ["localOn", "localText", "roleOn", "roleText"].forEach(id => $(id).addEventListener("input", render));
+  $("out").addEventListener("input", fitOut);
+  $("subj").addEventListener("input", fitOut);
+  ONE_COL.addEventListener?.("change", fitOut);
+  window.addEventListener("resize", fitOut);
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
-  $("copyBtn").addEventListener("click", async () => {
-    const b = $("copyBtn");
-    try { await navigator.clipboard.writeText($("out").value); b.textContent = "Copied"; }
-    catch { $("out").select(); b.textContent = "Press Ctrl/Cmd+C"; }
-    setTimeout(() => (b.textContent = "Copy text"), 1800);
-  });
+  document.querySelectorAll("button.copy").forEach(b => b.addEventListener("click", async () => {
+    const src = $(b.dataset.copy), label = (b.dataset.label ||= b.textContent);
+    try { await navigator.clipboard.writeText(src.value); b.textContent = "Copied"; }
+    catch { src.select(); b.textContent = "Press Ctrl/Cmd+C"; }
+    setTimeout(() => (b.textContent = label), 1800);
+  }));
 }
 
 async function init() {

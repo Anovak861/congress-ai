@@ -104,19 +104,24 @@
 
   function chosenPolicies(policies) { return POLICY_ORDER.filter(p => policies[p]); }
 
+  // The subject goes in its own box on the page, so it is never pasted into the message body.
+  function emailSubject(ctx) {
+    const P = chosenPolicies(ctx.policies);
+    const s = "Constituent request: " + (P.length ? listJoin(P.map(askShort)) : "AI safety");
+    return s;
+  }
+
   function buildEmail(ctx) {
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
     const lines = pickLines(angles, angleIds, policies);
-    const subj = "Constituent request: " + listJoin(P.map(askShort));
     const out = [];
-    out.push("Subject: " + subj[0].toUpperCase() + subj.slice(1));
-    out.push("");
     out.push(`Dear ${honorific(m)} ${lastName(m.name)},`);
     out.push("");
     out.push(`My name is ${w.name}, and I live in ${w.place}.` + (m.chamber === "House" ? " I'm a constituent in your district." : " I'm one of your constituents."));
     if (isAlly(m)) out.push("Thank you for taking the risks of advanced AI seriously. I'm writing to ask you to keep leading on this.");
+    if (u.note) { out.push(""); out.push(u.note); }
     out.push("");
     if (!P.length) out.push("[Choose at least one ask above.]");
     else if (P.length === 1) out.push(`I'm asking you to ${askText(P[0], m)}.`);
@@ -124,7 +129,6 @@
     if (ctx.roleLine) { out.push(""); out.push(ctx.roleLine); }
     if (lines.length) { out.push(""); out.push(long ? "Here is why this matters to me:" : "Why it matters:"); lines.forEach(l => out.push(long || lines.length > 2 ? "- " + l.text : l.text)); }
     if (localLine) { out.push(""); out.push(localLine); }
-    if (u.note) { out.push(""); out.push(u.note); }
     out.push("");
     out.push(P.length ? `Will you ${P.length > 1 ? "support these steps" : "support this"}? I'd appreciate a reply letting me know where you stand.` : "I'd appreciate a reply letting me know where you stand.");
     out.push("");
@@ -144,13 +148,13 @@
     o.push(long ? "CALL SCRIPT (1–2 minutes)" : "CALL SCRIPT (about a minute)");
     o.push("");
     o.push(`"Hi, my name is ${w.name} and I'm a constituent from ${w.place}.`);
+    if (u.note) o.push(u.note);
     if (isAlly(m) && long) o.push(`First, thank you to ${hon} for taking the risks of advanced AI seriously.`);
     o.push(P.length ? `I'm calling to ask ${hon} to support ${listJoin(P.map(askShort))}.` : "[Choose at least one ask above.]");
     if (ctx.roleLine) o.push(aboutMember(ctx.roleLine, hon));
     if (long && P.includes("RSI")) o.push("By that I mean AI systems that automate their own research and development, building the next generation faster than people can check it.");
     lines.forEach(l => o.push(l.text));
     if (localLine) o.push(localLine);
-    if (long && u.note) o.push(u.note);
     o.push(`Can you tell me where ${hon} stands on this? Thank you."`);
     o.push("");
     o.push("IF YOU GET VOICEMAIL");
@@ -187,6 +191,7 @@
     o.push("");
     o.push("2. AGENDA (20 MINUTES)");
     o.push("- Introductions (2 min): who you are, where you live, why you care.");
+    if (u.note) o.push("    • In your words: " + u.note);
     if (isAlly(m)) o.push("- Thanks (1 min): acknowledge their work on AI risk (see their record on this page) and ask them to keep leading.");
     o.push("- The ask (3 min):" + (P.length ? "" : " [choose an ask]"));
     P.forEach(p => o.push("    • " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + "."));
@@ -222,6 +227,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, isAlly, build, lastName, honorific };
+  const api = { POLICY_ORDER, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);

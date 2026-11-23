@@ -1,7 +1,7 @@
 """Build docs/contacts.json: each member's Washington office phone and contact-form link.
 
 Usage:
-    python3 scripts/build_contacts.py [legislators-current.json]
+    python3 scripts/build_contacts.py [legislators-current.json [legislators-district-offices.json]]
 
 Source: the public congress-legislators dataset
 (https://github.com/unitedstates/congress-legislators), which covers sitting members.
@@ -14,13 +14,46 @@ each member's website, so `form` is that page:
 - Senate: the dataset's contact_form, or a checked page from SENATE_FORMS below.
 - House: <site>/contact, the House web platform's standard contact path. House sites block
   automated requests, so these links aren't checked by this script.
+
+For in-person meetings:
+- `meeting`: a senator's meeting/scheduling request page, found by scanning their site's links.
+  House sites can't be scanned (they block automated requests), so House members have none.
+- `offices`: district/state offices (address, phone, coordinates) from the same project's
+  legislators-district-offices.json.
 """
-import json, re, sys, unicodedata, urllib.request
+import json, re, sys, unicodedata, urllib.parse, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = "https://unitedstates.github.io/congress-legislators/legislators-current.json"
+OFFICES = "https://unitedstates.github.io/congress-legislators/legislators-district-offices.json"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+LINK = re.compile(r'<a[^>]+href="([^"#]+)"[^>]*>(.*?)</a>', re.I | re.S)
+
+
+def fetch(url):
+    try:
+        r = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20)
+        return r.geturl(), r.read(600000).decode("utf-8", "ignore")
+    except Exception:
+        return url, ""
+
+
+def meeting_page(pages):
+    """First link on the member's site or contact page that is a meeting/scheduling request."""
+    for page in pages:
+        if not page:
+            continue
+        base, html = fetch(page)
+        for href, text in LINK.findall(html):
+            label = re.sub(r"<[^>]+>|\s+", " ", text)
+            both = href + " " + label
+            if re.search(r"request|schedule.a.meeting", both, re.I) and re.search(r"meet|schedul", both, re.I) \
+                    and not re.search(r"tour|flag|newsletter|town.?hall|event|hearing|press|mobile", both, re.I):
+                return urllib.parse.urljoin(base, href)
+    return ""
 
 # Senators whose dataset entry has no contact_form (checked by hand, Nov 2026).
 SENATE_FORMS = {
@@ -61,11 +94,13 @@ def first_ok(first, x):
     return any(t.startswith(first) or (len(t) >= 3 and first.startswith(t)) for t in toks) or NICK.get(first) in toks
 
 
-def main(src):
-    if src:
-        leg = json.loads(Path(src).read_text())
-    else:
-        leg = json.load(urllib.request.urlopen(SRC, timeout=60))
+def load(path, url):
+    return json.loads(Path(path).read_text()) if path else json.load(urllib.request.urlopen(url, timeout=60))
+
+
+def main(src, offices_src):
+    leg = load(src, SRC)
+    offices = {x["id"]["bioguide"]: x["offices"] for x in load(offices_src, OFFICES)}
     data = json.loads((ROOT / "docs" / "data.json").read_text())
 
     by = defaultdict(dict)
@@ -90,12 +125,22 @@ def main(src):
             form = t.get("contact_form") or SENATE_FORMS.get(m["name"]) or site
         else:
             form = site + "/contact" if site else ""
-        out[f'{m["chamber"]}|{m["state"]}|{m["district"] or ""}|{m["name"]}'] = {"phone": t.get("phone", ""), "form": form, "site": site}
+        offs = [{"city": o.get("city", ""), "address": ", ".join(str(x) for x in (o.get("building"), o.get("address"), o.get("suite")) if x),
+                 "zip": str(o.get("zip") or ""), "phone": o.get("phone", ""), "lat": o.get("latitude"), "lon": o.get("longitude")}
+                for o in offices.get(hits[0]["id"]["bioguide"], []) if o.get("address")]
+        out[f'{m["chamber"]}|{m["state"]}|{m["district"] or ""}|{m["name"]}'] = {
+            "phone": t.get("phone", ""), "form": form, "site": site, "meeting": "", "offices": offs}
+
+    senate = [k for k in out if k.startswith("Senate")]
+    with ThreadPoolExecutor(12) as ex:
+        for k, url in zip(senate, ex.map(lambda k: meeting_page([out[k]["site"], out[k]["form"]]), senate)):
+            out[k]["meeting"] = url
+    print(f'{sum(1 for k in senate if out[k]["meeting"])} of {len(senate)} senators have a meeting-request page')
 
     dest = ROOT / "docs" / "contacts.json"
-    dest.write_text(json.dumps(out, ensure_ascii=False, indent=0))
+    dest.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
     print(f"{len(out)} members with an office, {missing} not yet sworn in or undecided -> {dest}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else None)
+    main(sys.argv[1] if len(sys.argv) > 1 else None, sys.argv[2] if len(sys.argv) > 2 else None)

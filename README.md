@@ -46,6 +46,8 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 Run `python3 scripts/build_contacts.py` after the data changes and again after members are sworn in (Jan 3, 2027). It matches members by chamber, state and name, so new members don't inherit a predecessor's office. Members who aren't sworn in get the Capitol switchboard instead.
 
+It also records, for in-person meetings, each senator's meeting-request page (found by scanning their site; 63 of 79 sitting senators in Nov 2026) and every member's district offices from `legislators-district-offices.json`. When the visitor entered an address, the page lists the nearest offices first; the coordinates stay in memory and aren't stored.
+
 Members of Congress don't publish email addresses; email goes through each member's website contact form. Senate links are the dataset's own or hand-checked ones. House links use the standard `<site>/contact` path; House sites block automated checks, so these aren't verified by the script.
 
 ## Address lookup: caveats

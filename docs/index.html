@@ -48,7 +48,24 @@ button.ghost{background:transparent;color:var(--ink)}
 .card .meta{color:var(--soft);font-size:14px}
 .card:disabled{cursor:default;opacity:.6}
 .build{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
-@media(min-width:900px){.build{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}}
+/* Desktop: the message stays in view beside the options and scrolls inside itself. */
+@media(min-width:900px){
+  .build{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
+  .out-col{position:sticky;top:16px;align-self:start}
+}
+/* Phones and tablets: one column; the message grows to fit its text (set in app.js). */
+@media(max-width:899px){
+  .paper textarea{min-height:320px;resize:none;overflow:hidden}
+}
+@media(max-width:560px){
+  form.find button{flex:1 1 100%}
+  .manual>span{flex:1 1 100%}
+  .manual select{flex:1 1 130px}
+  .subj .row{flex-wrap:wrap}
+  .subj .row button,.paperbar button{flex:1 1 100%}
+  .howto .big{display:flex;justify-content:center;text-align:center}
+  .step{padding:16px}
+}
 fieldset{border:0;padding:0;margin:0 0 18px}
 legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
@@ -63,11 +80,27 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .star{color:var(--brick);font-weight:700}
 .you{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px}
 .you textarea{grid-column:1/-1;min-height:72px;resize:vertical}
+.checks textarea{width:100%;resize:vertical;line-height:1.4}
+.subj{margin-bottom:12px}
+.subj label{display:block;font-weight:700;font-size:15px;margin-bottom:6px}
+.subj .row{display:flex;gap:8px;align-items:flex-start}
+.subj textarea{flex:1;font-family:"Source Serif 4",Georgia,serif;resize:none;line-height:1.4}
+.copy{white-space:nowrap}
 .paper{background:var(--paper);border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 0 var(--line),0 10px 24px -18px #000;position:relative}
-.paper textarea{width:100%;min-height:560px;border:0;background:transparent;padding:clamp(18px,3vw,36px);font:16px/1.6 "Source Serif 4",Georgia,serif;resize:vertical;white-space:pre-wrap}
+.paper textarea{width:100%;border:0;background:transparent;padding:clamp(18px,3vw,36px);font:16px/1.6 "Source Serif 4",Georgia,serif;resize:vertical;white-space:pre-wrap}
 .paperbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
 .paperbar .hint{font-size:13px;color:var(--soft)}
-.contact{font-size:14px;color:var(--soft);margin-top:10px}
+.howto{border:2px solid var(--brick);border-radius:6px;padding:14px 16px;margin-bottom:16px;background:var(--panel)}
+.howto h3{margin:0 0 10px;font-size:18px}
+.howto p{margin:10px 0 0;font-size:15px}
+.howto ol{margin:10px 0 0;padding-left:20px;font-size:15px}
+.howto ol li{margin:3px 0}
+.howto .big{display:inline-flex;align-items:center;min-height:48px;padding:0 18px;border-radius:4px;background:var(--brick);color:#fff;font-weight:700;text-decoration:none;font-size:17px}
+.howto .big:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.howto .sub{font-weight:700;font-size:14px;color:var(--soft);margin-top:14px}
+.offices{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px 16px;font-size:14px;line-height:1.4}
+.offices .mi{color:var(--soft)}
+.howto summary{cursor:pointer;font-size:14px;color:var(--soft);margin-top:8px}
 .tip{border-left:3px solid var(--brick);padding:2px 0 2px 12px;margin:0 0 16px;font-size:15px}
 .hidden{display:none}
 footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;color:var(--soft)}
@@ -125,10 +158,11 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
         <fieldset class="checks" id="angBox"><legend>Reasons to include</legend></fieldset>
         <fieldset class="checks hidden" id="localBox"><legend>Local angle</legend>
           <label><input type="checkbox" id="localOn" checked><span id="localLabel">Add a point about your state</span></label>
-          <textarea id="localText" rows="3" aria-label="Local point" style="width:100%"></textarea>
+          <textarea id="localText" rows="3" aria-label="Local point"></textarea>
         </fieldset>
         <fieldset class="checks hidden" id="roleBox"><legend>Their role</legend>
-          <label><input type="checkbox" id="roleOn"><span>Reference responsibilities<small id="roleText"></small></span></label>
+          <label><input type="checkbox" id="roleOn" checked><span>Reference responsibilities</span></label>
+          <textarea id="roleText" rows="3" aria-label="Responsibilities point"></textarea>
         </fieldset>
         <fieldset><legend>About you</legend>
           <div class="you">
@@ -139,13 +173,17 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
           </div>
         </fieldset>
       </div>
-      <div>
+      <div class="out-col" id="outCol">
+        <div class="howto" id="howto" aria-live="polite"></div>
+        <div class="subj" id="subjRow">
+          <label for="subj">Subject</label>
+          <div class="row"><textarea id="subj" rows="2" spellcheck="true"></textarea><button type="button" class="ghost copy" data-copy="subj">Copy subject</button></div>
+        </div>
         <div class="paperbar">
-          <span class="hint">You can edit the text below. Changing an option above rewrites it, so copy first.</span>
-          <button type="button" id="copyBtn">Copy text</button>
+          <span class="hint">You can edit the text. Changing an option rewrites it, so copy first.</span>
+          <button type="button" class="copy" data-copy="out" id="copyBtn">Copy message</button>
         </div>
         <div class="paper"><textarea id="out" aria-label="Your message" spellcheck="true"></textarea></div>
-        <p class="contact" id="contact"></p>
       </div>
     </div>
   </section>
