@@ -35,7 +35,10 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 ## Address lookup: caveats
 
-- It uses the U.S. Census geocoder through JSONP (no API key needed). Some hosts or CSPs block it. When it fails, the page falls back to a state + district picker plus a link to house.gov.
+- As you type, the address box suggests matching addresses from [Photon](https://photon.komoot.io) (OpenStreetMap data, no key, CORS-enabled). Picking one looks up the district from that point with the Census geocoder's `coordinates` endpoint, so it doesn't depend on the Census matching the exact address text.
+- Typed addresses without a pick still go to the Census `onelineaddress` matcher, which is strict. If it finds no match, the page opens the closest suggestions instead.
+- Both Census calls use JSONP (no API key needed). Some hosts, CSPs or privacy blockers block it. If a suggestion was picked, the page still shows the senators for its state and asks for the district; otherwise it falls back to the state + district picker plus a link to house.gov.
+- Photon's public server is fair-use. Requests are debounced (250 ms, 4+ characters). For heavy traffic, self-host Photon or swap in a keyed autocomplete service.
 - Six states redrew their maps for 2026: CA, TX, MO, NC, OH and UT. Census data may lag, so the page warns users in those states to check their district. A more robust option is a district lookup that knows the 120th-Congress lines, such as Geocodio's `cd` field (needs a key, and calling it from a backend keeps the key private).
 - DC and the territories aren't covered.
 

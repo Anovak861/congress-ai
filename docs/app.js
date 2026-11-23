@@ -29,23 +29,27 @@ function fillDistricts(st) {
 }
 function setMsg(t, warn) { $("findMsg").textContent = t; $("findMsg").className = "msg" + (warn ? " warn" : ""); }
 
-function geocode(address) {
-  // Census geocoder supports JSONP, which works from a plain static host without an API key.
+const STATE_CODE = Object.fromEntries(Object.entries(G.STATE_NAMES).map(([k, v]) => [v, k]));
+STATE_CODE["District of Columbia"] = "DC";
+
+// Census geocoder supports JSONP, which works from a plain static host without an API key.
+const CENSUS = "https://geocoding.geo.census.gov/geocoder/geographies/";
+const CENSUS_Q = "benchmark=Public_AR_Current&vintage=Current_Current&layers=all";
+let jsonpN = 0;
+function jsonp(url, ms = 12000) {
   return new Promise((resolve, reject) => {
-    const cb = "cg" + Date.now();
+    const cb = "cg" + Date.now() + "_" + jsonpN++;
     const s = document.createElement("script");
-    const done = () => { delete window[cb]; s.remove(); };
-    const timer = setTimeout(() => { done(); reject(new Error("timeout")); }, 12000);
-    window[cb] = data => { clearTimeout(timer); done(); resolve(data); };
-    s.onerror = () => { clearTimeout(timer); done(); reject(new Error("blocked")); };
-    s.src = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=jsonp&callback=" + cb + "&address=" + encodeURIComponent(address);
+    // After a timeout the script may still arrive, so leave a no-op callback behind instead of deleting it.
+    const done = () => { clearTimeout(timer); window[cb] = () => { delete window[cb]; }; s.remove(); };
+    const timer = setTimeout(() => { done(); reject(new Error("timeout")); }, ms);
+    window[cb] = data => { done(); resolve(data); };
+    s.onerror = () => { done(); reject(new Error("blocked")); };
+    s.src = url + "&format=jsonp&callback=" + cb;
     document.head.appendChild(s);
   });
 }
-function parseGeo(data) {
-  const match = data?.result?.addressMatches?.[0];
-  if (!match) return null;
-  const g = match.geographies || {};
+function readDistrict(g = {}) {
   const cdKey = Object.keys(g).filter(k => /Congressional District/i.test(k)).sort().pop();
   const cd = cdKey && g[cdKey][0];
   const stFips = cd?.STATE || g.States?.[0]?.STATE;
@@ -53,27 +57,136 @@ function parseGeo(data) {
   const field = cd && Object.keys(cd).find(k => /^CD\d+$/.test(k));
   let district = field ? parseInt(cd[field], 10) : null;
   if (district === 0) district = 1; // at-large
-  return { state, district, layer: cdKey, matched: match.matchedAddress };
+  return { state, district, layer: cdKey };
+}
+async function censusAddress(address) {
+  const d = await jsonp(`${CENSUS}onelineaddress?${CENSUS_Q}&address=${encodeURIComponent(address)}`);
+  const m = d?.result?.addressMatches?.[0];
+  return m ? { ...readDistrict(m.geographies), matched: m.matchedAddress } : null;
+}
+async function censusPoint(lon, lat) {
+  const d = await jsonp(`${CENSUS}coordinates?${CENSUS_Q}&x=${lon}&y=${lat}`);
+  return d?.result?.geographies ? readDistrict(d.result.geographies) : null;
 }
 
-async function onFind(e) {
-  e.preventDefault();
+// ---------- address suggestions (Photon, built on OpenStreetMap: free, no key, CORS-enabled) ----------
+const PHOTON = "https://photon.komoot.io/api/?limit=12&lang=en&layer=house&layer=street&bbox=-179.2,17.8,-66.9,71.5&q=";
+const AC = { items: [], active: -1, chosen: null, seq: 0, timer: 0, ctrl: null };
+
+function toSuggestion(f, typedNum) {
+  const p = f.properties || {};
+  const st = p.countrycode === "US" && STATE_CODE[p.state];
+  if (!st || !f.geometry) return null;
+  let line1 = [p.housenumber, p.street || p.name].filter(Boolean).join(" ");
+  // OSM often has the street but not the house number; keep the number the user typed so the lookup stays precise.
+  if (!p.housenumber && typedNum) line1 = typedNum + " " + line1;
+  const place = p.city || p.town || p.village || p.district || p.county || "";
+  const line2 = [place, [st, p.postcode].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const [lon, lat] = f.geometry.coordinates;
+  return { line1, line2, label: line1 + ", " + line2, state: st, lon, lat, exact: !!p.housenumber };
+}
+// Resolves to a list of suggestions, or null if the request failed or a newer one replaced it.
+async function suggest(q) {
+  const my = ++AC.seq;
+  AC.ctrl?.abort();
+  const ctrl = AC.ctrl = new AbortController();
+  try {
+    const d = await (await fetch(PHOTON + encodeURIComponent(q), { signal: ctrl.signal })).json();
+    if (my !== AC.seq) return null;
+    const num = (q.match(/^\s*(\d+[A-Za-z]?)\b/) || [])[1];
+    const seen = new Set();
+    return (d.features || []).map(f => toSuggestion(f, num))
+      .filter(s => s && !seen.has(s.label) && seen.add(s.label)).slice(0, 6);
+  } catch { return null; }
+}
+function cancelSuggest() { clearTimeout(AC.timer); AC.seq++; AC.ctrl?.abort(); }
+function showList(items) {
+  AC.items = items; AC.active = -1;
+  const ul = $("sugg");
+  ul.innerHTML = items.map((s, i) => `<li role="option" id="sugg${i}" data-i="${i}" aria-selected="false"><span>${esc(s.line1)}</span><small>${esc(s.line2)}</small></li>`).join("");
+  ul.hidden = !items.length;
+  $("addr").setAttribute("aria-expanded", String(!!items.length));
+  $("addr").removeAttribute("aria-activedescendant");
+}
+function closeList() { $("sugg").hidden = true; $("addr").setAttribute("aria-expanded", "false"); $("addr").removeAttribute("aria-activedescendant"); AC.active = -1; }
+function highlight(i) {
+  const lis = $("sugg").children;
+  if (!lis.length) return;
+  AC.active = (i + lis.length) % lis.length;
+  [...lis].forEach((li, j) => li.setAttribute("aria-selected", String(j === AC.active)));
+  lis[AC.active].scrollIntoView({ block: "nearest" });
+  $("addr").setAttribute("aria-activedescendant", lis[AC.active].id);
+}
+function pick(i) {
+  const s = AC.items[i]; if (!s) return;
+  $("addr").value = s.label; AC.chosen = s;
+  closeList(); lookup();
+}
+function onAddrInput() {
+  AC.chosen = null;
+  cancelSuggest();
+  const q = $("addr").value.trim();
+  if (q.length < 4) { showList([]); return; }
+  AC.timer = setTimeout(async () => { const l = await suggest(q); if (l) showList(l); }, 250);
+}
+function onAddrKey(e) {
+  const open = !$("sugg").hidden;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!open && AC.items.length && !AC.chosen) { showList(AC.items); }
+    if (!$("sugg").hidden) { e.preventDefault(); highlight(AC.active + (e.key === "ArrowDown" ? 1 : AC.active < 0 ? 0 : -1)); }
+  } else if (e.key === "Enter" && open && AC.active >= 0) {
+    e.preventDefault(); pick(AC.active);
+  } else if (e.key === "Escape" && open) {
+    e.preventDefault(); closeList();
+  }
+}
+
+// ---------- lookup ----------
+function onFind(e) { e.preventDefault(); cancelSuggest(); closeList(); lookup(); }
+
+async function lookup() {
   const a = $("addr").value.trim();
   if (!a) { setMsg("Type your street address, or choose your state and district below.", true); return; }
+  if (!D) { setMsg("Member data hasn't loaded yet. Try again in a moment.", true); return; }
+  const s = AC.chosen && AC.chosen.label === a ? AC.chosen : null;
   setMsg("Looking up your district…");
+  let r = null, failed = false;
   try {
-    const r = parseGeo(await geocode(a));
-    if (!r || !r.state) { setMsg("Couldn't match that address. Check it, or choose your state and district below.", true); return; }
-    if (!G.STATE_NAMES[r.state]) { setMsg("This tool covers the 50 states. DC and territories aren't included yet.", true); return; }
-    store.set("addr", a);
-    $("stateSel").value = r.state; fillDistricts(r.state);
-    if (r.district) $("distSel").value = String(r.district);
-    const redrawn = REDRAWN.has(r.state) ? ` ${G.STATE_NAMES[r.state]} redrew its House map for 2026, and the Census data may still show your old district, so please check it.` : "";
-    setMsg(`Matched ${r.matched}.${redrawn}`, !!redrawn);
-    choose(r.state, r.district);
-  } catch (err) {
-    setMsg("The address lookup isn't available here, so please choose your state and district below.", true);
+    // A picked house-level suggestion has the building's coordinates, which pin the district directly.
+    if (s?.exact) r = await censusPoint(s.lon, s.lat);
+    else {
+      r = await censusAddress(a);
+      if (!r?.state && s) r = await censusPoint(s.lon, s.lat);
+    }
+  } catch { failed = true; }
+
+  if (r?.state) return applyMatch(r.state, r.district, s?.label || r.matched || a, a);
+  if (s) {
+    // Census is unreachable, but the suggestion still tells us the state, so the senators can be shown.
+    if (!G.STATE_NAMES[s.state]) { setMsg("This tool covers the 50 states. DC and territories aren't included yet.", true); return; }
+    $("stateSel").value = s.state; fillDistricts(s.state);
+    choose(s.state, $("distSel").value ? parseInt($("distSel").value, 10) : null);
+    setMsg(`Found ${G.STATE_NAMES[s.state]}, but the district lookup isn't responding. Choose your district below.`, true);
+    return;
   }
+  if (failed) { setMsg("The address lookup isn't available here, so please choose your state and district below.", true); return; }
+  // No exact match: offer the closest addresses instead of a dead end.
+  const l = await suggest(a);
+  if (l?.length) {
+    showList(l); $("addr").focus();
+    setMsg("Couldn't match that address exactly. Pick yours from the list, or choose your state and district below.", true);
+  } else setMsg("Couldn't match that address. Check it, or choose your state and district below.", true);
+}
+
+function applyMatch(st, dist, label, typed) {
+  if (!G.STATE_NAMES[st]) { setMsg("This tool covers the 50 states. DC and territories aren't included yet.", true); return; }
+  store.set("addr", typed);
+  $("stateSel").value = st; fillDistricts(st);
+  if (dist) $("distSel").value = String(dist);
+  if (!dist && $("distSel").value) dist = parseInt($("distSel").value, 10);
+  const redrawn = REDRAWN.has(st) ? ` ${G.STATE_NAMES[st]} redrew its House map for 2026, and the Census data may still show your old district, so please check it.` : "";
+  setMsg(`Matched ${label}.${redrawn}`, !!redrawn);
+  choose(st, dist);
 }
 
 function choose(st, dist) {
@@ -164,6 +277,11 @@ function render() {
 // ---------- events ----------
 function bind() {
   $("findForm").addEventListener("submit", onFind);
+  $("addr").addEventListener("input", onAddrInput);
+  $("addr").addEventListener("keydown", onAddrKey);
+  $("addr").addEventListener("blur", closeList);
+  $("sugg").addEventListener("mousedown", e => e.preventDefault()); // keep focus in the input while clicking
+  $("sugg").addEventListener("click", e => { const li = e.target.closest("li"); if (li) pick(+li.dataset.i); });
   $("stateSel").addEventListener("change", e => {
     const st = e.target.value; fillDistricts(st); setMsg("");
     if (st) choose(st, $("distSel").value ? parseInt($("distSel").value, 10) : null);
