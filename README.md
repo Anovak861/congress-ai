@@ -38,7 +38,7 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 ## Message copy (docs/messages.json)
 
-- `startChecked`: each message starts with `count` reasons checked: up to `maxRecord` that tie to the member's own record (★), then the member's group list in order. The RELC overlay takes the last slot. Every checked reason goes into the message, with its sentence for each checked ask; a sentence shared by several asks is used once. The preemption and whistleblower asks have no reasons of their own.
+- `startChecked.count`: how many arguments start checked. They're picked at random from the arguments whose Suits groups (the `Most receptive tags` column) include the member's ideology tag or overlay, or that suit all tags, so messages from different people vary. Arguments only appear in Long messages: in an email, each ask is a bold sentence with its checked arguments as bullets underneath; a sentence shared by several asks is used once. The preemption and whistleblower asks have no arguments of their own.
 - `local`: one line per state. It starts checked; states without one get no local point. A line is either a string or `{text, preempt, otherwise, to}`: `preempt` is added only when the preemption ask is checked (`otherwise` when it isn't), and `to` gives a thank-you version, keyed by member name, used when the message goes to the member the line names.
 - `responsibilities`: an optional sentence for members with leadership or committee roles, keyed by name. It shows a "Reference responsibilities" checkbox. Call scripts reword it about the member ("Senator X decides").
 

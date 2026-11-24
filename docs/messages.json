@@ -1,48 +1,7 @@
 {
-  "_about": "Hand-edited message copy (not generated). startChecked: which reasons begin checked. local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
+  "_about": "Hand-edited message copy (not generated). startChecked.count: how many arguments begin checked, picked at random from those whose Suits groups match the member's ideology. local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
   "startChecked": {
-    "count": 3,
-    "maxRecord": 2,
-    "groups": {
-      "PROG": [
-        "A03",
-        "A07",
-        "A10"
-      ],
-      "DEM": [
-        "A01",
-        "A02",
-        "A14"
-      ],
-      "MODD": [
-        "A04",
-        "A14",
-        "A26"
-      ],
-      "POPR": [
-        "A03",
-        "A07",
-        "A08"
-      ],
-      "MAINR": [
-        "A05",
-        "A15",
-        "A27"
-      ],
-      "LIBR": [
-        "A16",
-        "A17",
-        "A20"
-      ],
-      "MODR": [
-        "A04",
-        "A26",
-        "A27"
-      ],
-      "RELC": [
-        "A09"
-      ]
-    }
+    "count": 3
   },
   "local": {
     "AZ": {

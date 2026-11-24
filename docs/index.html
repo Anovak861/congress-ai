@@ -55,7 +55,7 @@ button.ghost{background:transparent;color:var(--ink)}
 }
 /* Phones and tablets: one column; the message grows to fit its text (set in app.js). */
 @media(max-width:899px){
-  .paper textarea{min-height:320px;resize:none;overflow:hidden}
+  .paper .out{min-height:320px}
 }
 @media(max-width:560px){
   form.find button{flex:1 1 100%}
@@ -87,7 +87,9 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .subj textarea{flex:1;font-family:"Source Serif 4",Georgia,serif;resize:none;line-height:1.4}
 .copy{white-space:nowrap}
 .paper{background:var(--paper);border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 0 var(--line),0 10px 24px -18px #000;position:relative}
-.paper textarea{width:100%;border:0;background:transparent;padding:clamp(18px,3vw,36px);font:16px/1.6 "Source Serif 4",Georgia,serif;resize:vertical;white-space:pre-wrap}
+.paper .out{width:100%;padding:clamp(18px,3vw,36px);font:16px/1.6 "Source Serif 4",Georgia,serif;white-space:pre-wrap;overflow-wrap:anywhere;overflow-y:auto;border-radius:4px}
+.paper .out:focus{outline:2px solid var(--brick);outline-offset:-2px}
+.paper .out b{font-weight:600}
 .paperbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
 .paperbar .hint{font-size:13px;color:var(--soft)}
 .howto{border:2px solid var(--brick);border-radius:6px;padding:14px 16px;margin-bottom:16px;background:var(--panel)}
@@ -151,11 +153,11 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
         <fieldset><legend>Length</legend>
           <div class="seg">
             <label><input type="radio" name="len" value="short" checked>Short</label>
-            <label><input type="radio" name="len" value="long">Long</label>
+            <label><input type="radio" name="len" value="long">Long, with arguments</label>
           </div>
         </fieldset>
         <fieldset class="checks" id="polBox"><legend>What to ask for</legend></fieldset>
-        <fieldset class="checks" id="angBox"><legend>Reasons to include</legend></fieldset>
+        <fieldset class="checks hidden" id="angBox"><legend>Arguments</legend></fieldset>
         <fieldset class="checks hidden" id="localBox"><legend>Local angle</legend>
           <label><input type="checkbox" id="localOn" checked><span id="localLabel">Add a point about your state</span></label>
           <textarea id="localText" rows="3" aria-label="Local point"></textarea>
@@ -183,7 +185,7 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
           <span class="hint">You can edit the text. Changing an option rewrites it, so copy first.</span>
           <button type="button" class="copy" data-copy="out" id="copyBtn">Copy message</button>
         </div>
-        <div class="paper"><textarea id="out" aria-label="Your message" spellcheck="true"></textarea></div>
+        <div class="paper"><div class="out" id="out" role="textbox" aria-multiline="true" aria-label="Your message" spellcheck="true"></div></div>
       </div>
     </div>
   </section>

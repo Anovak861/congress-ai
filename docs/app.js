@@ -7,7 +7,7 @@ const G = window.Gen;
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
-let D = null, CONTACTS = {}, MSG = { startChecked: { count: 3, maxRecord: 2, groups: {} }, local: {}, responsibilities: {} };
+let D = null, CONTACTS = {}, MSG = { startChecked: { count: 3 }, local: {}, responsibilities: {} };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
 const store = {
@@ -219,6 +219,7 @@ const shortName = m => `${G.honorific(m)} ${G.lastName(m.name)}`;
 function selectMember(m) {
   S.sel = m;
   S.policies = G.defaultPolicies(m);
+  S.pool = G.ideologyAngles(m, D.angles);
   S.start = G.startAngles(m, D.angles, S.policies, MSG.startChecked);
   S.angles = new Set(S.start);
   S.userEdited = false;
@@ -235,10 +236,10 @@ function renderPolicies() {
   $("polBox").innerHTML = "<legend>What to ask for</legend>" + G.POLICY_ORDER.map(p =>
     `<label><input type="checkbox" data-p="${p}" ${S.policies[p] ? "checked" : ""}><span>${esc(G.POLICY_LABEL[p])}<small>${esc(help[p])}</small></span></label>`).join("");
 }
-// Display order: the start-checked reasons, then the member's other suggestions, then everything else.
+// Display order: the start-checked reasons, then the other reasons aimed at the member's ideology, then everything else.
 function angleOrder() {
-  const m = S.sel, all = D.angles.map(a => a.id);
-  const sug = [...new Set([...S.start, ...m.angles])].filter(id => all.includes(id));
+  const all = D.angles.map(a => a.id);
+  const sug = [...new Set([...S.start, ...S.pool])].filter(id => all.includes(id));
   return { sug, rest: all.filter(id => !sug.includes(id)) };
 }
 function renderAngles() {
@@ -250,6 +251,7 @@ function renderAngles() {
     return `<label class="${usable ? "" : "off"}" title="${esc(a.evidence)}"><input type="checkbox" data-a="${id}" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" title="Ties to their own record" aria-label="ties to their own record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
   };
   const { sug, rest } = angleOrder();
+  $("angBox").classList.toggle("hidden", !S.long); // arguments only go into Long messages
   $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
     sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
 }
@@ -279,7 +281,7 @@ function renderRole() {
 function ctx() {
   const { sug, rest } = angleOrder();
   return {
-    m: S.sel, angles: D.angles, policies: S.policies, angleIds: [...sug, ...rest].filter(id => S.angles.has(id)), long: S.long,
+    m: S.sel, angles: D.angles, policies: S.policies, angleIds: S.long ? [...sug, ...rest].filter(id => S.angles.has(id)) : [], long: S.long,
     u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), note: $("uNote").value.trim() },
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
     roleLine: $("roleOn").checked ? $("roleText").value.trim() : "",
@@ -289,7 +291,7 @@ function ctx() {
 function render() {
   if (!S.sel) return;
   const c0 = ctx(), email = S.kind === "email";
-  $("out").value = G.build(S.kind, c0);
+  $("out").innerHTML = toHTML(G.build(S.kind, c0));
   $("subjRow").classList.toggle("hidden", !email);
   $("outCol").classList.toggle("has-subj", email);
   if (email) $("subj").value = G.emailSubject(c0);
@@ -344,13 +346,17 @@ function renderHowTo() {
   }
 }
 
+// The message box is editable text (white-space: pre-wrap, so newlines are kept as typed), with **bold** shown as <b>.
+const toHTML = text => esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+const outText = () => $("out").innerText.replace(/\n+$/, "");
+
 // On one-column layouts the message grows to fit its text; on desktop it scrolls inside a fixed-height panel.
 const ONE_COL = window.matchMedia("(max-width: 899px)");
 function fitOut() {
   const o = $("out"), col = $("outCol"), sj = $("subj");
   sj.style.height = ""; sj.style.height = sj.scrollHeight + 2 + "px";
   o.style.height = "";
-  if (ONE_COL.matches) { o.style.height = o.scrollHeight + 2 + "px"; return; }
+  if (ONE_COL.matches) return; // the box grows with its text
   // Desktop: fill the rest of the viewport beside the options.
   const other = col.offsetHeight - o.offsetHeight;
   o.style.height = Math.max(320, innerHeight - other - 32) + "px";
@@ -371,7 +377,7 @@ function bind() {
   $("distSel").addEventListener("change", e => { if (S.state) choose(S.state, parseInt(e.target.value, 10)); });
   $("cards").addEventListener("click", e => { const c = e.target.closest(".card"); if (c && !c.disabled) selectMember(S.members[+c.dataset.i]); });
   document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener("change", e => { S.kind = e.target.value; render(); }));
-  document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; render(); }));
+  document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; renderAngles(); render(); }));
   $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
   ["localOn", "localText", "roleOn", "roleText"].forEach(id => $(id).addEventListener("input", render));
@@ -381,10 +387,24 @@ function bind() {
   ONE_COL.addEventListener?.("change", fitOut);
   window.addEventListener("resize", fitOut);
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
+  // Paste plain text so the browser doesn't carry styles into the message.
+  try { $("out").contentEditable = "plaintext-only"; } catch { $("out").contentEditable = "true"; }
   document.querySelectorAll("button.copy").forEach(b => b.addEventListener("click", async () => {
     const src = $(b.dataset.copy), label = (b.dataset.label ||= b.textContent);
-    try { await navigator.clipboard.writeText(src.value); b.textContent = "Copied"; }
-    catch { src.select(); b.textContent = "Press Ctrl/Cmd+C"; }
+    const rich = src.id === "out", text = rich ? outText() : src.value;
+    try {
+      // The message copies as both rich text (bold kept in email apps) and plain text (contact forms).
+      if (rich && window.ClipboardItem && navigator.clipboard.write) {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([src.innerHTML.replace(/\n/g, "<br>")], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }) })]);
+      } else await navigator.clipboard.writeText(text);
+      b.textContent = "Copied";
+    } catch {
+      if (rich) { const r = document.createRange(); r.selectNodeContents(src); getSelection().removeAllRanges(); getSelection().addRange(r); }
+      else src.select();
+      b.textContent = "Press Ctrl/Cmd+C";
+    }
     setTimeout(() => (b.textContent = label), 1800);
   }));
 }

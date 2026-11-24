@@ -81,21 +81,21 @@
     return out;
   }
 
-  // Which reasons start checked: up to cfg.maxRecord that tie to the member's own record,
-  // then the group's list (RELC overlay takes the last slot), then the member's other defaults.
-  function startAngles(m, angles, policies, cfg) {
+  // Reasons aimed at the member's ideology: their "Suits" groups include the member's tag
+  // (or the RELC overlay), or the reason suits all tags.
+  function ideologyAngles(m, angles) {
+    const tags = (m.tag || "").split("+").filter(Boolean);
+    return angles.filter(a => /all tags/i.test(a.receptive) ||
+      tags.some(t => new RegExp("\\b" + t + "\\b").test(a.receptive))).map(a => a.id);
+  }
+
+  // Which reasons start checked: cfg.count picked at random from the ideology matches that the
+  // chosen asks can use, so messages from different people don't all argue the same way.
+  function startAngles(m, angles, policies, cfg, rand = Math.random) {
     const byId = Object.fromEntries(angles.map(a => [a.id, a]));
-    const ok = id => byId[id] && angleUsable(byId[id], policies);
-    const out = [];
-    for (const id of m.specific || []) if (out.length < cfg.maxRecord && ok(id) && !out.includes(id)) out.push(id);
-    const [base, ...over] = (m.tag || "").split("+");
-    let list = [...(cfg.groups[base] || [])];
-    if (over.includes("RELC") && cfg.groups.RELC) list = [...list.slice(0, cfg.count - 1), ...cfg.groups.RELC, ...list.slice(cfg.count - 1)];
-    for (const id of [...list, ...(m.angles || [])]) {
-      if (out.length >= cfg.count) break;
-      if (ok(id) && !out.includes(id)) out.push(id);
-    }
-    return out;
+    const pool = ideologyAngles(m, angles).filter(id => angleUsable(byId[id], policies));
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    return pool.slice(0, cfg.count);
   }
 
   // Role sentences are written to the member ("you"); call scripts speak to staff about them.
@@ -125,23 +125,31 @@
     return s;
   }
 
+  // Lines wrapped in ** are shown in bold on the page (and copied as bold where the paste target allows it).
   function buildEmail(ctx) {
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
-    const lines = pickLines(angles, angleIds, policies);
+    const byId = Object.fromEntries(angles.map(a => [a.id, a]));
+    const seen = new Set();
     const out = [];
     out.push(`Dear ${honorific(m)} ${lastName(m.name)},`);
     out.push("");
     out.push(`My name is ${w.name}, and I live in ${w.place}.` + (m.chamber === "House" ? " I'm a constituent in your district." : " I'm one of your constituents."));
     if (isAlly(m)) out.push("Thank you for taking the risks of advanced AI seriously. I'm writing to ask you to keep leading on this.");
     if (u.note) { out.push(""); out.push(u.note); }
-    out.push("");
-    if (!P.length) out.push("[Choose at least one ask above.]");
-    else if (P.length === 1) out.push(`I'm asking you to ${askText(P[0], m)}.`);
-    else { out.push("I'm asking you to:"); P.forEach(p => out.push("- " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + ".")); }
+    if (!P.length) { out.push(""); out.push("[Choose at least one ask above.]"); }
+    for (const p of P) {
+      out.push("");
+      out.push("**Please " + askText(p, m) + ".**");
+      if (!long) continue;
+      // Each checked argument's sentence for this ask; a sentence already used under an earlier ask is skipped.
+      for (const id of angleIds) {
+        const a = byId[id], t = a && a.policies.includes(p) && (a.lines[p] || "").trim();
+        if (t && !seen.has(t)) { seen.add(t); out.push("- " + t); }
+      }
+    }
     if (ctx.roleLine) { out.push(""); out.push(ctx.roleLine); }
-    if (lines.length) { out.push(""); out.push(long ? "Here is why this matters to me:" : "Why it matters:"); lines.forEach(l => out.push(long || lines.length > 2 ? "- " + l.text : l.text)); }
     if (localLine) { out.push(""); out.push(localLine); }
     out.push("");
     out.push(P.length ? `Will you ${P.length > 1 ? "support these steps" : "support this"}? I'd appreciate a reply letting me know where you stand.` : "I'd appreciate a reply letting me know where you stand.");
@@ -210,7 +218,7 @@
     o.push("- The ask (3 min):" + (P.length ? "" : " [choose an ask]"));
     P.forEach(p => o.push("    • " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + "."));
     if (ctx.roleLine) o.push("    • Their role: " + aboutMember(ctx.roleLine, hon));
-    o.push("- Why it matters (8 min):");
+    if (lines.length || localLine) o.push("- Why it matters (8 min):");
     lines.forEach(l => o.push("    • " + l.name + ": " + l.text));
     if (localLine) o.push("    • Local angle: " + localLine);
     o.push("- Their view (4 min): ask what would make it easier for them to support this, and listen.");
@@ -241,6 +249,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
+  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);
