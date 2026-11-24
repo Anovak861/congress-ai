@@ -7,3 +7,4 @@
 - Smoke test: serve `docs/` on port 8765, then `node tests/smoke.js` (needs Playwright + Chrome).
 - Messages should stay respectful and constituent-voiced, with no partisan attacks. Pause wording for Republicans stresses a verifiable deal that binds China.
 - Ideology codes: PROG, DEM, MODD, POPR, MAINR, LIBR, MODR (+RELC overlay). Policy (ask) codes: RSI, OVS, PAUSE, PREEMPT, WHISTLE; only the first three have reason sentences. Angles: A01–A29, minus A11, A13, A19 and A23 (removed Nov 2026; A11 and A23 became the PREEMPT and WHISTLE asks).
+- GitHub Pages lets browsers cache files for 10 minutes. After changing any `.js` or `.json` in `docs/`, bump the `?v=` on both script tags in `docs/index.html` (app.js reuses it for the data files), or visitors can get a new page with old scripts.

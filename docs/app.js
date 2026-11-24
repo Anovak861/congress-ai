@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const G = window.Gen;
+// The ?v= on this script's URL (set in index.html) also versions the data files, so they update together.
+const VER = new URL(document.currentScript.src).search;
 
 // States whose House maps changed for the 2026 election. The Census geocoder may still return the old district there.
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
@@ -411,7 +413,7 @@ async function init() {
   fillStates(); bind();
   ["uName", "uCity", "uZip", "uNote"].forEach(id => { const v = store.get(id); if (v) $(id).value = v; });
   try { localStorage.removeItem("cc_addr"); } catch {} // older versions saved the address; it is no longer stored
-  const load = f => fetch(f).then(r => { if (!r.ok) throw new Error(f); return r.json(); });
+  const load = f => fetch(f + VER).then(r => { if (!r.ok) throw new Error(f); return r.json(); });
   try { D = await load("data.json"); }
   catch { setMsg("Couldn't load member data. If you opened this file directly, serve the folder over http instead.", true); return; }
   // Contacts and message copy are optional: without them the page still works with defaults.
