@@ -226,6 +226,7 @@ function selectMember(m) {
   S.angles = new Set(S.start);
   S.userEdited = false;
   S.localEdited = false;
+  syncChoices();
   [...$("cards").children].forEach((c, i) => c.setAttribute?.("aria-pressed", String(S.members[i] === m)));
   renderPolicies(); renderAngles(); renderLocal(); renderRole();
   $("s3").classList.remove("hidden");
@@ -249,12 +250,50 @@ function renderAngles() {
   const row = id => {
     const a = byId[id]; if (!a) return "";
     const usable = G.angleUsable(a, S.policies);
-    return `<label class="${usable ? "" : "off"}" title="${esc(a.evidence)}"><input type="checkbox" data-a="${id}" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" title="Ties to their own record" aria-label="ties to their own record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
+    return `<label class="${usable ? "" : "off"}"><input type="checkbox" data-a="${id}" aria-describedby="angTip" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" aria-label="ties to their own record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
   };
   const { sug, rest } = angleOrder();
   $("angBox").classList.toggle("hidden", !S.long); // arguments only go into Long messages
   $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
     sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
+}
+// Hover preview: the sentences this argument adds under each checked ask (once each, as in the email).
+function angleTipHTML(id) {
+  const a = D.angles.find(x => x.id === id); if (!a) return "";
+  const asks = G.LINE_POLICIES.filter(p => a.policies.includes(p) && (a.lines[p] || "").trim());
+  const on = asks.filter(p => S.policies[p]);
+  const seen = new Set(), parts = [];
+  for (const p of on.length ? on : asks) {
+    const t = a.lines[p].trim(); if (seen.has(t)) continue; seen.add(t);
+    parts.push(`<p class="ask">Under “${esc(G.POLICY_LABEL[p])}”</p><p class="line">${esc(t)}</p>`);
+  }
+  const head = on.length ? "Adds to your message" : "Adds nothing with the asks you picked. With these asks it would add";
+  const star = new Set(S.sel.specific).has(id) ? `<p class="rec">★ Ties to ${esc(shortName(S.sel))}'s own record.</p>` : "";
+  return `<p class="head">${head}:</p>${parts.join("")}${star}`;
+}
+function showAngleTip(label) {
+  const id = label.querySelector("input[data-a]")?.dataset.a, tip = $("angTip");
+  if (!id) return;
+  tip.innerHTML = angleTipHTML(id); tip.hidden = false;
+  // Beside the list when there's room, otherwise just below (or above) the hovered row.
+  const r = label.getBoundingClientRect(), txt = label.querySelector("span").getBoundingClientRect(), vw = innerWidth, vh = innerHeight;
+  const roomRight = vw - txt.right - 48;
+  if (roomRight >= 320) {
+    tip.style.width = Math.min(440, roomRight) + "px";
+    tip.style.left = txt.right + 32 + "px";
+    tip.style.top = Math.max(8, Math.min(r.top - 8, vh - tip.offsetHeight - 8)) + "px";
+  } else {
+    tip.style.width = Math.min(440, vw - 32) + "px";
+    tip.style.left = Math.max(16, Math.min(r.left, vw - tip.offsetWidth - 16)) + "px";
+    const below = r.bottom + 6, above = r.top - tip.offsetHeight - 6;
+    tip.style.top = (below + tip.offsetHeight <= vh - 8 || above < 8 ? below : above) + "px";
+  }
+}
+const hideAngleTip = () => { $("angTip").hidden = true; };
+// The page can come back with radios restored by the browser (reload, back button), so read them.
+function syncChoices() {
+  S.kind = document.querySelector("input[name=kind]:checked")?.value || "email";
+  S.long = document.querySelector("input[name=len]:checked")?.value === "long";
 }
 // The state line: a thank-you version when it goes to the member it names, and some sentences
 // only when the preemption ask is checked (see messages.json).
@@ -382,6 +421,13 @@ function bind() {
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; renderAngles(); render(); }));
   $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
+  $("angBox").addEventListener("pointerover", e => { const l = e.target.closest("label"); if (l && e.pointerType === "mouse") showAngleTip(l); });
+  $("angBox").addEventListener("pointerout", e => { const l = e.target.closest("label"); if (l && !l.contains(e.relatedTarget)) hideAngleTip(); });
+  $("angBox").addEventListener("focusin", e => { if (e.target.dataset.a && e.target.matches(":focus-visible")) showAngleTip(e.target.closest("label")); });
+  $("angBox").addEventListener("focusout", hideAngleTip);
+  addEventListener("scroll", hideAngleTip, { passive: true });
+  addEventListener("keydown", e => { if (e.key === "Escape") hideAngleTip(); });
+  addEventListener("pageshow", () => { syncChoices(); if (S.sel) { renderAngles(); render(); } });
   ["localOn", "localText", "roleOn", "roleText"].forEach(id => $(id).addEventListener("input", render));
   $("localText").addEventListener("input", () => { S.localEdited = true; });
   $("subj").addEventListener("input", fitOut);
