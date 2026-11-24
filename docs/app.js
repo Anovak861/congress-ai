@@ -225,7 +225,6 @@ function selectMember(m) {
   S.userEdited = false;
   S.localEdited = false;
   [...$("cards").children].forEach((c, i) => c.setAttribute?.("aria-pressed", String(S.members[i] === m)));
-  $("tip").innerHTML = `<b>Suggested approach for ${esc(shortName(m))}:</b> ${esc(m.ask)}.`;
   renderPolicies(); renderAngles(); renderLocal(); renderRole();
   $("s3").classList.remove("hidden");
   render();
@@ -293,7 +292,6 @@ function render() {
   const c0 = ctx(), email = S.kind === "email";
   $("out").innerHTML = toHTML(G.build(S.kind, c0));
   $("subjRow").classList.toggle("hidden", !email);
-  $("outCol").classList.toggle("has-subj", email);
   if (email) $("subj").value = G.emailSubject(c0);
   renderHowTo();
   fitOut();
@@ -320,15 +318,23 @@ const ext = (href, text, cls = "") => `<a class="${cls}" href="${esc(href)}" tar
 function renderHowTo() {
   const m = S.sel, c = contactOf(m), who = esc(shortName(m)), box = $("howto");
   if (!c) {
-    box.innerHTML = `<h3>${S.kind === "email" ? "How to send it" : S.kind === "call" ? "Who to call" : "How to request a meeting"}</h3>
-      <p>${who} takes office in January 2027, so there's no office phone, contact form or meeting page yet. Until then, call the Capitol switchboard and ask for ${who}'s office.</p>
-      ${telLink("202-224-3121", "big")}`;
+    // Members-elect have no official office (and so no official email, form or phone) until they're sworn in.
+    const find = ext("https://duckduckgo.com/?q=" + encodeURIComponent(`${m.name} ${G.STATE_NAMES[m.state]} campaign website`),
+      `Find ${who}'s campaign website ↗`, "big");
+    const until = `${who} is sworn in on January 3, 2027. Until then there's no official office, so there's no official email address, contact form or office phone.`;
+    box.innerHTML = S.kind === "email"
+      ? `<h3>How to send it</h3><p>${until}</p>${find}
+         <ol><li>Send it now through the contact form on their campaign website. It reaches their campaign team, not an official office.</li>
+         <li>Or keep it and send it through their official contact form after January 3.</li></ol>`
+      : S.kind === "call"
+      ? `<h3>Who to call</h3><p>${until}</p>${find}<p>Campaign websites usually list a phone number. Their official office number starts working after January 3.</p>`
+      : `<h3>How to request a meeting</h3><p>${until}</p>${find}<p>Meeting requests go to the official office once it opens. Before then, you can ask through their campaign website.</p>`;
     return;
   }
   if (S.kind === "email") {
     box.innerHTML = `<h3>How to send it</h3>
       ${ext(c.form, `Open ${who}'s contact form ↗`, "big")}
-      <ol><li>Copy the subject below into the form's subject field.</li><li>Copy the message into the message field.</li><li>Fill in your name and home address. Offices only answer constituents, so the form asks for it.</li></ol>`;
+      <ol><li>Copy the subject above into the form's subject field.</li><li>Copy the message into the message field.</li><li>Fill in your name and home address. Offices only answer constituents, so the form asks for it.</li></ol>`;
   } else if (S.kind === "call") {
     const near = officeList(c, 1);
     box.innerHTML = `<h3>Who to call</h3>
@@ -350,16 +356,10 @@ function renderHowTo() {
 const toHTML = text => esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
 const outText = () => $("out").innerText.replace(/\n+$/, "");
 
-// On one-column layouts the message grows to fit its text; on desktop it scrolls inside a fixed-height panel.
-const ONE_COL = window.matchMedia("(max-width: 899px)");
+// The message box grows with its text; the subject box is sized to fit its text too.
 function fitOut() {
-  const o = $("out"), col = $("outCol"), sj = $("subj");
+  const sj = $("subj");
   sj.style.height = ""; sj.style.height = sj.scrollHeight + 2 + "px";
-  o.style.height = "";
-  if (ONE_COL.matches) return; // the box grows with its text
-  // Desktop: fill the rest of the viewport beside the options.
-  const other = col.offsetHeight - o.offsetHeight;
-  o.style.height = Math.max(320, innerHeight - other - 32) + "px";
 }
 
 // ---------- events ----------
@@ -382,9 +382,7 @@ function bind() {
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
   ["localOn", "localText", "roleOn", "roleText"].forEach(id => $(id).addEventListener("input", render));
   $("localText").addEventListener("input", () => { S.localEdited = true; });
-  $("out").addEventListener("input", fitOut);
   $("subj").addEventListener("input", fitOut);
-  ONE_COL.addEventListener?.("change", fitOut);
   window.addEventListener("resize", fitOut);
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
   // Paste plain text so the browser doesn't carry styles into the message.

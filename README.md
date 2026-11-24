@@ -44,7 +44,7 @@ The exporter reads columns by header name, so renaming a header will break it.
 
 ## Contacts (docs/contacts.json)
 
-Run `python3 scripts/build_contacts.py` after the data changes and again after members are sworn in (Jan 3, 2027). It matches members by chamber, state and name, so new members don't inherit a predecessor's office. Members who aren't sworn in get the Capitol switchboard instead.
+Run `python3 scripts/build_contacts.py` after the data changes and again after members are sworn in (Jan 3, 2027). It matches members by chamber, state and name, so new members don't inherit a predecessor's office. Members who aren't sworn in have no official office yet, so the page points to their campaign website (via a web search) and explains that official contact details come after Jan 3, 2027.
 
 It also records, for in-person meetings, each senator's meeting-request page (found by scanning their site; 63 of 79 sitting senators in Nov 2026) and every member's district offices from `legislators-district-offices.json`. When the visitor entered an address, the page lists the nearest offices first; the coordinates stay in memory and aren't stored.
 
