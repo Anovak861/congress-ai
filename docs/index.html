@@ -95,6 +95,15 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .offices{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px 16px;font-size:14px;line-height:1.4}
 .offices .mi{color:var(--soft)}
 .howto summary{cursor:pointer;font-size:14px;color:var(--soft);margin-top:8px}
+.howto .tips{margin:10px 0 0;padding-left:20px;font-size:15px}
+.howto .tips li{margin:4px 0}
+.qa{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-top:16px;background:var(--panel)}
+.qa h3{margin:0 0 6px;font-size:18px}
+.qa .lead{margin:0;font-size:15px;color:var(--soft)}
+.qa h4{margin:16px 0 4px;font-size:15px;color:var(--brick)}
+.qa dl{margin:0;font-size:15px;line-height:1.45}
+.qa dt{font-weight:600;margin-top:10px}
+.qa dd{margin:2px 0 0}
 .hidden{display:none}
 .angtip{position:fixed;z-index:20;margin:0;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--brick);border-radius:4px;box-shadow:0 18px 40px -16px #0008;pointer-events:none;font-size:15px;line-height:1.45}
 .angtip p{margin:0}
@@ -182,6 +191,7 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
         </div>
         <div class="paper"><div class="out" id="out" role="textbox" aria-multiline="true" aria-label="Your message" spellcheck="true"></div></div>
         <div class="howto" id="howto" aria-live="polite"></div>
+        <div class="qa hidden" id="qa"></div>
       </div>
     </div>
   </section>
@@ -189,7 +199,7 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
 <footer>Member data: research snapshot from the incoming 120th Congress (Nov 2026), built from AP race calls, the Congressional AI Tracker, bill cosponsor lists and campaign coverage. Office phone numbers and contact forms come from the <a href="https://github.com/unitedstates/congress-legislators" target="_blank" rel="noopener">congress-legislators</a> dataset. District lookup uses the U.S. Census geocoder. Address suggestions come from <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a> using &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</footer>
 <!-- Bump ?v= whenever a .js or .json file in docs/ changes, so browsers never mix a new page with cached old scripts or data. -->
 <div id="angTip" class="angtip" role="tooltip" hidden></div>
-<script src="generate.js?v=2026-11-25a"></script>
-<script src="app.js?v=2026-11-25a"></script>
+<script src="generate.js?v=2026-11-25c"></script>
+<script src="app.js?v=2026-11-25c"></script>
 </body>
 </html>

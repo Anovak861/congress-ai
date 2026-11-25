@@ -160,42 +160,56 @@
     return out.join("\n");
   }
 
+  // How long the call script takes to say: its words at a calm phone pace, to the nearest 15 seconds.
+  // Bracketed placeholders like [your town] aren't counted.
+  const CALL_WPM = 140, CALL_HEAD = /^CALL SCRIPT \([^)\n]*\)/, CALL_END = /\n\s*IF YOU GET VOICEMAIL\b/;
+  function wordCount(text) { return text.replace(/\[[^\]]*\]/g, " ").split(/\s+/).filter(t => /[\p{L}\p{N}]/u.test(t)).length; }
+  function speakTime(words) {
+    const s = Math.max(15, Math.round(words / CALL_WPM * 60 / 15) * 15);
+    if (s < 60) return `about ${s} seconds`;
+    const min = Math.floor(s / 60), sec = s % 60;
+    return `about ${min} minute${min > 1 ? "s" : ""}${sec ? ` ${sec} seconds` : ""}`;
+  }
+  const callHeader = spoken => `CALL SCRIPT (${speakTime(wordCount(spoken))})`;
+  // For a whole call script (possibly edited by the visitor): the heading it should have now,
+  // timed from the spoken part between the heading and the voicemail line.
+  function callHeading(text) {
+    if (!CALL_HEAD.test(text)) return null;
+    const body = text.replace(CALL_HEAD, ""), end = body.search(CALL_END);
+    return callHeader(end < 0 ? body : body.slice(0, end));
+  }
+
   function buildCall(ctx) {
     const { m, u, policies, angleIds, angles, long, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
-    const lines = pickLines(angles, angleIds, policies);
     const hon = shortHon(m) + " " + lastName(m.name);
+    const why = [u.note, ...callLines(angles, angleIds, policies, ctx.callLines)].filter(Boolean);
     const o = [];
-    o.push(long ? "CALL SCRIPT (1–2 minutes)" : "CALL SCRIPT (about a minute)");
+    o.push("");  // heading, filled in below once the spoken part is known
     o.push("");
+    // Intro, the asks, why, the local and role points, then the close.
     o.push(`"Hi, my name is ${w.name} and I'm a constituent from ${w.place}.`);
-    if (u.note) o.push(u.note);
     if (isAlly(m) && long) o.push(`First, thank you to ${hon} for taking the risks of advanced AI seriously.`);
     o.push(P.length ? `I'm calling to ask ${hon} to support ${listJoin(P.map(askShort))}.` : "[Choose at least one ask above.]");
-    if (ctx.roleLine) o.push(aboutMember(ctx.roleLine, hon));
-    if (long && P.includes("RSI")) o.push("By that I mean AI systems that automate their own research and development, building the next generation faster than people can check it.");
-    lines.forEach(l => o.push(l.text));
+    if (long && P.includes("RSI")) o.push("By AI that improves itself, I mean AI systems that automate their own research and development, building the next generation faster than people can check it.");
+    if (why.length) o.push("Here's why I think we should do this.", ...why);
     if (localLine) o.push(localLine);
+    if (ctx.roleLine) o.push(aboutMember(ctx.roleLine, hon));
     o.push(`Can you tell me where ${hon} stands on this? Thank you."`);
+    o[0] = callHeader(o.slice(2).join("\n"));
     o.push("");
     o.push("IF YOU GET VOICEMAIL");
     o.push(`"Hi, this is ${w.name} from ${w.place}. I'm asking ${hon} to support ${listJoin(P.map(askShort)) || "[your ask]"}. Thank you."`);
-    if (long) {
-      o.push("");
-      o.push("IF STAFF ASK QUESTIONS");
-      if (P.includes("RSI")) o.push(`- "What do you mean by recursive self-improvement?" → AI systems doing most of the work of building the next, more capable AI, so each generation arrives faster and with less human checking. AI companies say this is starting now.`);
-      o.push(`- "Won't this hurt innovation?" → The asks are narrow: they leave chatbots, medical tools and business software alone and target the riskiest step.`);
-      o.push(`- "What about China?" → Most voters want both to keep up with China and to have guardrails. Any agreement should be verifiable and bind China too.`);
-    }
-    o.push("");
-    o.push("HOW TO CALL");
-    o.push(ctx.phone
-      ? "- " + honorific(m) + " " + m.name + "'s Washington office: " + ctx.phone + "."
-      : "- Capitol switchboard: (202) 224-3121. Ask for " + honorific(m) + " " + m.name + "'s office.");
-    o.push("- Calls are logged by issue and position, so short calls count. Ask for the staffer who covers technology or AI if you want to say more.");
-    o.push("- Weekdays, 9am–5pm Eastern. Being polite and local matters more than being detailed.");
     return o.join("\n");
+  }
+
+  // Call scripts use one sentence per checked argument (messages.json callLines), falling back to
+  // the argument's first sentence for the checked asks. Arguments the checked asks can't use are skipped.
+  function callLines(angles, angleIds, policies, lines = {}) {
+    const byId = Object.fromEntries(angles.map(a => [a.id, a]));
+    return angleIds.map(id => byId[id]).filter(a => a && angleUsable(a, policies))
+      .map(a => lines[a.id] || angleLine(a, policies).text);
   }
 
   function buildMeeting(ctx) {
@@ -249,6 +263,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific };
+  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific, callHeading, wordCount, speakTime, callLines, askShort };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);

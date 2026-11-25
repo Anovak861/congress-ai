@@ -88,5 +88,69 @@
     "Jim Risch": "As a leader on the Foreign Relations Committee, you would shape any international agreement on advanced AI.",
     "Roger Wicker": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat.",
     "Jack Reed": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat."
+  },
+  "callLines": {
+    "_about": "One spoken sentence per argument, used in Long call scripts after \"Here's why I think we should do this.\" Edited in the Call script argument one-liners doc.",
+    "A01": "People, not machines, need to stay in charge of the most powerful AI, and most voters in both parties agree.",
+    "A02": "The AI companies themselves say AI may soon build the next AI with little human involvement, so we should take them at their word.",
+    "A03": "The companies racing to profit from AI shouldn't be the ones grading their own safety.",
+    "A04": "We audit banks and inspect airplanes, so the most powerful AI systems should get independent safety checks too.",
+    "A05": "AI that slips out of human control is a national security risk, and the race between companies is pushing them to cut corners on safety.",
+    "A06": "We've negotiated verifiable limits on dangerous weapons with rivals before, and we can do the same with China on the most dangerous AI.",
+    "A07": "Workers deserve a say before AI companies automate their jobs.",
+    "A08": "Kids and families shouldn't be the test subjects for AI that no one has shown is safe.",
+    "A09": "Some decisions are too important to hand to machines, and building minds we don't understand calls for humility.",
+    "A10": "A handful of companies shouldn't gain unprecedented wealth and power from AI that puts Americans out of work.",
+    "A12": "Communities hosting AI data centers are facing higher power bills and pressure on their water, and they deserve a say in how fast this grows.",
+    "A14": "82% of voters say companies shouldn't build smarter-than-human AI until they can show it can be controlled.",
+    "A15": "Some steps can't be undone, so it's wise to slow down before we take them.",
+    "A16": "Independent testing would give Congress the facts it needs before it writes broader rules.",
+    "A17": "Companies that build dangerous AI should answer for the harm it causes, like any other business.",
+    "A18": "Leading scientists like Geoffrey Hinton are warning Congress that the time to act is running out.",
+    "A20": "This can be narrow: it targets the riskiest AI development and leaves everyday tools like chatbots and medical software alone.",
+    "A21": "In the 1970s, scientists paused risky genetic engineering experiments until safety rules were in place, and the field thrived.",
+    "A22": "Decisions this big belong to the people's elected representatives, not a few tech executives.",
+    "A24": "AI with growing hacking skills puts our power grid, hospitals and banks at risk.",
+    "A25": "The most advanced AI could help someone build a biological weapon, so it needs to be tested for that before release.",
+    "A26": "Trusted, tested AI is AI people will actually use, so safety is how America keeps its lead.",
+    "A27": "This isn't partisan: 83% of Republicans want a guaranteed off-switch for AI.",
+    "A28": "91% of Americans say AI guardrails are important, and most want both guardrails and to keep up with China.",
+    "A29": "Candidates in both parties who promised to rein in AI did well this November."
+  },
+  "staffQuestions": {
+    "_about": "Shown beside call scripts (not part of the script): \"any\" always, then one group per checked ask. {hon} becomes \"Senator X\" / \"Rep. X\". Facts checked Nov 2026; keep dates on anything that can go stale.",
+    "any": [
+      { "q": "Are you calling for an organization?", "a": "Say you're calling as a constituent. Offices count calls from the people they represent." },
+      { "q": "Is there a specific bill?", "a": "You don't need one. Say: \"I'd like {hon} to support legislation that does this. Is there a bill {hon} supports?\" Offices log calls by issue and position." },
+      { "q": "Won't regulation hurt innovation?", "a": "These asks are narrow. They leave chatbots, medical tools and business software alone and focus on the most powerful systems." },
+      { "q": "What about China?", "a": "Most voters want both to keep up with China and to have guardrails. Any international agreement should be verifiable and bind China too." },
+      { "q": "\"I'm not sure where {hon} stands.\"", "a": "Ask them to note your position and pass it along. Leave your name and ZIP code so they can follow up." }
+    ],
+    "RSI": [
+      { "q": "What do you mean by recursive self-improvement?", "a": "AI systems doing most of the work of building the next, more capable AI, so each generation arrives faster and with less human checking." },
+      { "q": "Is that really happening?", "a": "AI companies say it's starting. OpenAI said in October 2025 that it aims to have an automated AI research intern by September 2026 and a fully automated AI researcher by March 2028." },
+      { "q": "Wouldn't this stop all AI research?", "a": "No. People can keep using AI tools in their work. The limit is on AI doing the research and development of its own successors with little human checking, until that's shown to be safe." },
+      { "q": "How would it be enforced?", "a": "Only a few companies have the huge data centers needed to train the most advanced AI. Independent evaluators and reporting rules can check what those companies are doing." }
+    ],
+    "OVS": [
+      { "q": "Don't companies already test their own models?", "a": "They do, but they decide what to test and what to share. Independent evaluators with real access would check the most powerful systems before release, the way auditors check banks." },
+      { "q": "Who would do the testing?", "a": "Licensed independent evaluators, overseen by the government. For example, the bipartisan AI Risk Evaluation Act from Senators Hawley and Blumenthal (introduced September 2025) would set up a testing program at the Department of Energy." },
+      { "q": "What's an emergency shutdown?", "a": "A tested way to stop a model's training or use quickly if it turns out to be dangerous. 86% of voters want a guaranteed off-switch." }
+    ],
+    "PAUSE": [
+      { "q": "Isn't a pause unrealistic?", "a": "Not if it's mutual and verifiable. The U.S. and the Soviet Union agreed to verified arms limits during the Cold War, and the same idea can apply to the most dangerous AI." },
+      { "q": "Wouldn't China just keep going?", "a": "That's why it has to be a verifiable agreement that binds China too. The U.S. wouldn't pause alone." },
+      { "q": "What would be paused?", "a": "Only building frontier systems more powerful than today's. The AI products people already use would keep working." },
+      { "q": "How could anyone check?", "a": "Training the most advanced AI takes huge data centers and specialized chips, which are hard to hide. The U.S. already tracks those chips through export controls." }
+    ],
+    "PREEMPT": [
+      { "q": "Isn't one national rule better than 50 state laws?", "a": "A strong national standard would be welcome as a floor. Blocking state laws without one would leave no rules at all." },
+      { "q": "Which state laws?", "a": "California's SB 53 (2025) and New York's RAISE Act require the biggest AI developers to publish safety plans and report serious safety incidents. New York's law takes effect January 1, 2027." },
+      { "q": "Hasn't Congress already settled this?", "a": "In July 2025 the Senate voted 99 to 1 to drop a ban on state AI laws from the budget bill. Proposals to override state laws keep coming back, so it's still open." }
+    ],
+    "WHISTLE": [
+      { "q": "Aren't whistleblowers already protected?", "a": "Mostly when they report illegal acts like fraud. Many AI safety risks aren't illegal, so workers who raise them can be fired. The bipartisan AI Whistleblower Protection Act, introduced in 2025, would close that gap." },
+      { "q": "Why report incidents within hours?", "a": "So problems are caught before they spread. Banks must tell their regulators about serious computer-security incidents within 36 hours, and New York's RAISE Act will require AI incident reports within 72 hours." }
+    ]
   }
 }

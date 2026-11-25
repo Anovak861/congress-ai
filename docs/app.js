@@ -9,7 +9,7 @@ const VER = new URL(document.currentScript.src).search;
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
-let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {} };
+let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {} };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
 const store = {
@@ -260,7 +260,13 @@ function renderAngles() {
 // Hover preview: the sentences this argument adds under each checked ask (once each, as in the email).
 function angleTipHTML(id) {
   const a = D.angles.find(x => x.id === id); if (!a) return "";
-  const asks = G.LINE_POLICIES.filter(p => a.policies.includes(p) && (a.lines[p] || "").trim());
+  const star = new Set(S.sel.specific).has(id) ? `<p class="rec">★ Ties to ${esc(shortName(S.sel))}'s own record.</p>` : "";
+  if (S.kind === "call") {
+    // Call scripts use one sentence per argument.
+    const usable = G.angleUsable(a, S.policies), one = G.callLines([a], [id], usable ? S.policies : { RSI: 1, OVS: 1, PAUSE: 1 }, MSG.callLines)[0];
+    return `<p class="head">${usable ? "Adds to your call script" : "Adds nothing with the asks you picked. With other asks it would add"}:</p><p class="line">${esc(one || "")}</p>${star}`;
+  }
+  const asks =G.LINE_POLICIES.filter(p => a.policies.includes(p) && (a.lines[p] || "").trim());
   const on = asks.filter(p => S.policies[p]);
   const seen = new Set(), parts = [];
   for (const p of on.length ? on : asks) {
@@ -268,7 +274,6 @@ function angleTipHTML(id) {
     parts.push(`<p class="ask">Under “${esc(G.POLICY_LABEL[p])}”</p><p class="line">${esc(t)}</p>`);
   }
   const head = on.length ? "Adds to your message" : "Adds nothing with the asks you picked. With these asks it would add";
-  const star = new Set(S.sel.specific).has(id) ? `<p class="rec">★ Ties to ${esc(shortName(S.sel))}'s own record.</p>` : "";
   return `<p class="head">${head}:</p>${parts.join("")}${star}`;
 }
 function showAngleTip(label) {
@@ -326,6 +331,7 @@ function ctx() {
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
     roleLine: $("roleOn").checked ? $("roleText").value.trim() : "",
     phone: fmtPhone(contactOf(S.sel)?.phone),
+    callLines: MSG.callLines,
   };
 }
 function render() {
@@ -335,6 +341,7 @@ function render() {
   $("subjRow").classList.toggle("hidden", !email);
   if (email) $("subj").value = G.emailSubject(c0);
   renderHowTo();
+  renderQA();
   fitOut();
 }
 
@@ -379,8 +386,16 @@ function renderHowTo() {
   } else if (S.kind === "call") {
     const near = officeList(c, 1);
     box.innerHTML = `<h3>Who to call</h3>
-      ${telLink(c.phone, "big")}
-      <p>${who}'s Washington office. Weekdays, 9am–5pm Eastern. If the line is busy, try a local office.</p>
+      ${c.phone ? telLink(c.phone, "big") : telLink("202-224-3121", "big")}
+      <p>${c.phone ? `${who}'s Washington office.` : `The Capitol switchboard. Ask for ${who}'s office.`} Offices usually answer weekdays, 9am–5pm Eastern.</p>
+      <ul class="tips">
+        <li>A staff member or intern usually answers. You don't need to reach ${who}: they note your name, where you live and your position, and calls are tallied by issue, so a short call counts.</li>
+        <li>Give your town or ZIP code so they know you're a constituent.</li>
+        <li>If you want to say more, ask for the staffer who covers technology or AI.</li>
+        <li>After hours, leave a voicemail with your name, ZIP code and your ask (use the voicemail line in the script).</li>
+        <li>If the line is busy, try a local office${c.phone ? ", or the Capitol switchboard at " + telLink("202-224-3121") + " and ask for the office" : ""}.</li>
+        <li>Polite and local matters more than detailed.</li>
+      </ul>
       ${near ? `<p class="sub">${S.coords ? "Nearest local office" : "Local offices"}</p>${near}` : ""}`;
   } else {
     const offices = officeList(c, 2);
@@ -393,9 +408,35 @@ function renderHowTo() {
   }
 }
 
+// Call scripts only: likely staff questions with short answers (messages.json staffQuestions),
+// a general group plus one group per checked ask. Read-only, outside the script.
+function renderQA() {
+  const box = $("qa"), Q = MSG.staffQuestions || {};
+  box.classList.toggle("hidden", S.kind !== "call");
+  if (S.kind !== "call") return;
+  const hon = esc(`${S.sel.chamber === "Senate" ? "Senator" : "Rep."} ${G.lastName(S.sel.name)}`);
+  const fill = t => esc(t).replaceAll("{hon}", hon);
+  const group = (title, items) => items?.length ? `<h4>${esc(title)}</h4><dl>${items.map(x =>
+    `<dt>${fill(x.q)}</dt><dd>${fill(x.a)}</dd>`).join("")}</dl>` : "";
+  box.innerHTML = `<h3>If staff ask questions</h3>
+    <p class="lead">Most calls are quick, and you don't need to know all of this. "I'm not sure, but I'd still like ${hon} to support it" is a fine answer.</p>
+    ${group("Any call", Q.any)}
+    ${G.POLICY_ORDER.filter(p => S.policies[p]).map(p => group(G.POLICY_LABEL[p], Q[p])).join("")}`;
+}
+
 // The message box is editable text (white-space: pre-wrap, so newlines are kept as typed), with **bold** shown as <b>.
 const toHTML = text => esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
 const outText = () => $("out").innerText.replace(/\n+$/, "");
+
+// When the visitor edits a call script, re-time its heading from the new word count. Only the
+// heading's own characters change (in its text node), so the caret stays where they're typing.
+function retimeCall() {
+  if (S.kind !== "call") return;
+  const out = $("out"), node = document.createTreeWalker(out, NodeFilter.SHOW_TEXT).nextNode();
+  const head = node && node.data.match(/^CALL SCRIPT \([^)\n]*\)/);
+  const want = head && G.callHeading(outText());
+  if (want && want !== head[0]) node.replaceData(0, head[0].length, want);
+}
 
 // The message box grows with its text; the subject box is sized to fit its text too.
 function fitOut() {
@@ -435,6 +476,7 @@ function bind() {
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
   // Paste plain text so the browser doesn't carry styles into the message.
   try { $("out").contentEditable = "plaintext-only"; } catch { $("out").contentEditable = "true"; }
+  $("out").addEventListener("input", retimeCall);
   document.querySelectorAll("button.copy").forEach(b => b.addEventListener("click", async () => {
     const src = $(b.dataset.copy), label = (b.dataset.label ||= b.textContent);
     const rich = src.id === "out", text = rich ? outText() : src.value;
