@@ -1,7 +1,7 @@
 {
   "_about": "Hand-edited message copy (not generated). startChecked.count: how many arguments begin checked, picked at random from those whose Suits groups match the member's ideology. local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
   "startChecked": {
-    "count": 3
+    "count": 1
   },
   "local": {
     "AZ": {
