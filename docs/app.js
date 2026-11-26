@@ -12,10 +12,6 @@ const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"
 let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {} };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
-const store = {
-  get(k) { try { return JSON.parse(localStorage.getItem("cc_" + k)); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem("cc_" + k, JSON.stringify(v)); } catch {} },
-};
 
 // ---------- Step 1: find members ----------
 function fillStates() {
@@ -473,11 +469,7 @@ function bind() {
   $("localText").addEventListener("input", () => { S.localEdited = true; });
   $("subj").addEventListener("input", fitOut);
   window.addEventListener("resize", fitOut);
-  ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
-  $("forgetYou").addEventListener("click", () => {
-    ["uName", "uCity", "uZip", "uNote"].forEach(id => { $(id).value = ""; try { localStorage.removeItem("cc_" + id); } catch {} });
-    render();
-  });
+  ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", render));
   // Paste plain text so the browser doesn't carry styles into the message.
   try { $("out").contentEditable = "plaintext-only"; } catch { $("out").contentEditable = "true"; }
   $("out").addEventListener("input", retimeCall);
@@ -503,8 +495,8 @@ function bind() {
 
 async function init() {
   fillStates(); bind();
-  ["uName", "uCity", "uZip", "uNote"].forEach(id => { const v = store.get(id); if (v) $(id).value = v; });
-  try { localStorage.removeItem("cc_addr"); } catch {} // older versions saved the address; it is no longer stored
+  // Nothing is stored. Older versions saved the address and the About you details in this browser; delete them.
+  try { ["addr", "uName", "uCity", "uZip", "uNote"].forEach(k => localStorage.removeItem("cc_" + k)); } catch {}
   const load = f => fetch(f + VER).then(r => { if (!r.ok) throw new Error(f); return r.json(); });
   try { D = await load("data.json"); }
   catch { setMsg("Couldn't load member data. If you opened this file directly, serve the folder over http instead.", true); return; }
