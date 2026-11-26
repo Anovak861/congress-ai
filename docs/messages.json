@@ -118,13 +118,15 @@
     "A29": "Candidates in both parties who promised to rein in AI did well this November."
   },
   "staffQuestions": {
-    "_about": "Shown beside call scripts (not part of the script): \"any\" always, then one group per checked ask. {hon} becomes \"Senator X\" / \"Rep. X\". Facts checked Nov 2026; keep dates on anything that can go stale.",
+    "_about": "Shown beside call scripts (not part of the script): \"any\" always, then one group per checked ask. {hon} becomes \"Senator X\" / \"Rep. X\". An item's optional \"meeting\" object replaces its q and/or a for in-person meetings. Facts checked Nov 2026; keep dates on anything that can go stale.",
     "any": [
-      { "q": "Are you calling for an organization?", "a": "Say you're calling as a constituent. Offices count calls from the people they represent." },
+      { "q": "Are you calling for an organization?", "a": "Say you're calling as a constituent. Offices count calls from the people they represent.",
+        "meeting": { "q": "Are you here for an organization?", "a": "Say you're here as a constituent. Offices pay most attention to the people they represent." } },
       { "q": "Is there a specific bill?", "a": "You don't need one. Say: \"I'd like {hon} to support legislation that does this. Is there a bill {hon} supports?\" Offices track constituents' views by issue and position." },
       { "q": "Won't regulation hurt innovation?", "a": "These asks are narrow. They leave chatbots, medical tools and business software alone and focus on the most powerful systems." },
       { "q": "What about China?", "a": "Most voters want both to keep up with China and to have guardrails. Any international agreement should be verifiable and bind China too." },
-      { "q": "\"I'm not sure where {hon} stands.\"", "a": "Ask them to note your position and pass it along. Leave your name and ZIP code so they can follow up." }
+      { "q": "\"I'm not sure where {hon} stands.\"", "a": "Ask them to note your position and pass it along. Leave your name and ZIP code so they can follow up.",
+        "meeting": { "a": "Ask them to share your view with {hon} and let you know where the office lands. Offer to send more information, and mention it again in your thank-you email." } }
     ],
     "RSI": [
       { "q": "What do you mean by recursive self-improvement?", "a": "AI systems doing most of the work of building the next, more capable AI, so each generation arrives faster and with less human checking." },
@@ -161,5 +163,32 @@
     "Going with others? Keep the group small and decide beforehand who covers which part of the agenda.",
     "Ask for the staffer's email address or business card so you can send the thank-you.",
     "If you work in AI or policy and would rather not be public, private meetings are fine. You don't need to sign public letters."
-  ]
+  ],
+  "voterStats": {
+    "_about": "Voter-support figures for the meeting leave-behind, one group per checked ask. Republicans get \"R\"; everyone else gets \"all\" (no Democrat-only polls in the research). From the research spreadsheet's evidence column; keep the source and date on each.",
+    "all": {
+      "RSI": [
+        "82% of voters say companies shouldn't build smarter-than-human AI until they can show it can be controlled, and 86% want a guaranteed off-switch (Public Citizen poll memo, Sept 2026)."
+      ],
+      "OVS": [
+        "86% of Americans want AI companies held to safety standards even if it slows progress (Quinnipiac, Sept 2026).",
+        "75% want independent experts to test new AI before it's widely used (SCSP-Gallup, 2026)."
+      ],
+      "PAUSE": [
+        "68% of likely voters support pausing advanced AI until federal safety rules are in place (Data for Progress, Sept 2026)."
+      ]
+    },
+    "R": {
+      "RSI": [
+        "83% of Republicans want a guaranteed off-switch for AI (Public Citizen poll memo, Sept 2026)."
+      ],
+      "OVS": [
+        "71% of Republican voters say independent security testing should be required by law for the most advanced AI (ARI/Morning Consult, May 2026).",
+        "90% of Trump voters support vetting AI models before release (Institute for Family Studies, May 2026)."
+      ],
+      "PAUSE": [
+        "63% of Republicans back pausing advanced AI until safety rules exist (Data for Progress, 2026)."
+      ]
+    }
+  }
 }

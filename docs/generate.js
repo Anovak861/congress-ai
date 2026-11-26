@@ -238,7 +238,10 @@
     const topics = listJoin(P.map(askShort)) || "[your topic]";
     const asks = P.map(p => askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + ".");
     const role = ctx.roleLine ? aboutMember(ctx.roleLine, hon) : "";
-    const contact = "[your email and phone number]";
+    // Email and phone from About you, if given; otherwise a placeholder to fill in.
+    const reach = [u.email, u.phone].filter(Boolean);
+    const contact = reach.length ? reach.join(" or ") : "[your email and phone number]";
+    const contactLines = reach.length ? reach : ["[your email and phone number]"];
 
     const request = [
       "Hello,",
@@ -274,18 +277,28 @@
     l.push("");
     l.push("**What I'm asking for**");
     if (asks.length) asks.forEach(t => l.push("- " + t)); else l.push("- [Choose at least one ask above.]");
-    // The page has room for one short point per argument, so it uses the one-liners.
-    const why = [...callLines(angles, angleIds, policies, ctx.callLines), localLine].filter(Boolean);
+    // Polling for the member's own voters: Republican voters for Republicans, all voters otherwise.
+    const statSet = (ctx.voterStats || {})[isRepublican(m) ? "R" : "all"] || {};
+    const stats = [...new Set(P.flatMap(p => statSet[p] || []))];
+    // The page has room for one short point per argument, so it uses the one-liners. The two
+    // polling arguments (A14, A27) are left out when the voter figures below cover them.
+    const argIds = stats.length ? angleIds.filter(id => id !== "A14" && id !== "A27") : angleIds;
+    const why = [...callLines(angles, argIds, policies, ctx.callLines), localLine].filter(Boolean);
     if (why.length || u.note) {
       l.push("");
       l.push("**Why it matters**");
       why.forEach(t => l.push("- " + t));
       if (u.note) { l.push(""); l.push(u.note); }
     }
+    if (stats.length) {
+      l.push("");
+      l.push(isRepublican(m) ? "**What Republican voters think**" : "**What voters think**");
+      stats.forEach(t => l.push("- " + t));
+    }
     l.push("");
     l.push("**Contact**");
     l.push(`${w.name}, ${w.place}`);
-    l.push(contact);
+    l.push(...contactLines);
     const leave = l.join("\n");
 
     const t = [];
@@ -305,6 +318,7 @@
     t.push("Thank you,");
     t.push(w.name);
     t.push(w.place);
+    if (u.phone) t.push(u.phone);  // the email itself carries the address
     const thanks = t.join("\n");
 
     return { request, agenda, leave, thanks };

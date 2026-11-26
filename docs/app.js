@@ -9,7 +9,7 @@ const VER = new URL(document.currentScript.src).search;
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
-let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {}, meetingTips: [] };
+let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {}, meetingTips: [], voterStats: {} };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
 
@@ -326,11 +326,12 @@ function ctx() {
   const { sug, rest } = angleOrder();
   return {
     m: S.sel, angles: D.angles, policies: S.policies, angleIds: withArgs() ? [...sug, ...rest].filter(id => S.angles.has(id)) : [], long: withArgs(),
-    u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), note: $("uNote").value.trim() },
+    u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), email: $("uEmail").value.trim(), phone: $("uPhone").value.trim(), note: $("uNote").value.trim() },
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
     roleLine: $("roleOn").checked ? $("roleText").value.trim() : "",
     phone: fmtPhone(contactOf(S.sel)?.phone),
     callLines: MSG.callLines,
+    voterStats: MSG.voterStats,
   };
 }
 function render() {
@@ -435,7 +436,9 @@ function renderQA() {
   if (S.kind === "email") return;
   const hon = esc(`${S.sel.chamber === "Senate" ? "Senator" : "Rep."} ${G.lastName(S.sel.name)}`);
   const fill = t => esc(t).replaceAll("{hon}", hon);
-  const group = (title, items) => items?.length ? `<h4>${esc(title)}</h4><dl>${items.map(x =>
+  // An item's optional "meeting" object replaces its call wording (q and/or a) for meetings.
+  const pick = x => call || !x.meeting ? x : { ...x, ...x.meeting };
+  const group = (title, items) => items?.length ? `<h4>${esc(title)}</h4><dl>${items.map(pick).map(x =>
     `<dt>${fill(x.q)}</dt><dd>${fill(x.a)}</dd>`).join("")}</dl>` : "";
   const tips = call ? "" : `<h3>5. Tips</h3><ul class="tips">${(MSG.meetingTips || []).map(t => `<li>${fill(t)}</li>`).join("")}</ul>`;
   box.innerHTML = `${tips}<h3${call ? "" : ' class="next"'}>If staff ask questions</h3>
@@ -495,10 +498,17 @@ function bind() {
   $("localText").addEventListener("input", () => { S.localEdited = true; });
   $("subj").addEventListener("input", fitOut);
   window.addEventListener("resize", fitOut);
-  ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", render));
+  ["uName", "uCity", "uZip", "uEmail", "uPhone", "uNote"].forEach(id => $(id).addEventListener("input", render));
   // Paste plain text so the browser doesn't carry styles into the message.
   document.querySelectorAll(".paper .out").forEach(el => { try { el.contentEditable = "plaintext-only"; } catch { el.contentEditable = "true"; } });
   $("out").addEventListener("input", retimeCall);
+  // Print just the leave-behind, as edited: copy it into #printArea, which the print styles in
+  // index.html show alone while this class is on.
+  $("printLeave").addEventListener("click", () => {
+    $("printArea").innerHTML = $("mLeave").innerHTML;
+    document.body.classList.add("print-leave"); print();
+  });
+  addEventListener("afterprint", () => document.body.classList.remove("print-leave"));
   document.querySelectorAll("button.copy").forEach(b => b.addEventListener("click", async () => {
     const src = $(b.dataset.copy), label = (b.dataset.label ||= b.textContent);
     const rich = !/^(TEXTAREA|INPUT)$/.test(src.tagName), text = rich ? src.innerText.replace(/\n+$/, "") : src.value;

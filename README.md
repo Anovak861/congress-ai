@@ -43,6 +43,7 @@ The exporter reads columns by header name, so renaming a header will break it.
 - `callLines`: one spoken sentence per argument, keyed by angle ID. Long call scripts use these instead of the per-ask sentences, in this order: intro, asks, personal note, then the checked arguments as one run ("We should do this because …", "Also, …", "Finally, …"), the state point and responsibilities, then the close.
 - `staffQuestions`: likely staff questions with short answers, shown in a read-only box under call scripts and meeting plans: `any` always, then one group per checked ask. `{hon}` becomes "Senator X" or "Rep. X". Keep dates on facts that can go stale.
 - `meetingTips`: tips shown above the staff questions for in-person meetings. `{hon}` works here too.
+- `voterStats`: polling figures for the meeting leave-behind, one list per ask, with source and date. Republicans get `R`, everyone else `all`.
 - `responsibilities`: an optional sentence for members with leadership or committee roles, keyed by name. It shows a "Reference responsibilities" checkbox. Call scripts reword it about the member ("Senator X decides").
 
 ## Contacts (docs/contacts.json)
