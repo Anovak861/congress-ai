@@ -474,6 +474,10 @@ function bind() {
   $("subj").addEventListener("input", fitOut);
   window.addEventListener("resize", fitOut);
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", () => { store.set(id, $(id).value); render(); }));
+  $("forgetYou").addEventListener("click", () => {
+    ["uName", "uCity", "uZip", "uNote"].forEach(id => { $(id).value = ""; try { localStorage.removeItem("cc_" + id); } catch {} });
+    render();
+  });
   // Paste plain text so the browser doesn't carry styles into the message.
   try { $("out").contentEditable = "plaintext-only"; } catch { $("out").contentEditable = "true"; }
   $("out").addEventListener("input", retimeCall);

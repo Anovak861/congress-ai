@@ -90,7 +90,7 @@
     "Jack Reed": "As a leader on the Armed Services Committee, you know that uncontrollable AI is a threat."
   },
   "callLines": {
-    "_about": "One spoken sentence per argument, used in Long call scripts after \"Here's why I think we should do this.\" Edited in the Call script argument one-liners doc.",
+    "_about": "One spoken sentence per argument, used in Long call scripts as one run: \"We should do this because …\", then \"Also, …\", \"On top of that, …\", \"Finally, …\". Write each so it reads after \"because\"; its first letter is lowercased unless it starts with an acronym like AI or a name like Congress. Edited in the Call script argument one-liners doc.",
     "A01": "People, not machines, need to stay in charge of the most powerful AI, and most voters in both parties agree.",
     "A02": "The AI companies themselves say AI may soon build the next AI with little human involvement, so we should take them at their word.",
     "A03": "The companies racing to profit from AI shouldn't be the ones grading their own safety.",

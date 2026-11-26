@@ -184,7 +184,7 @@
     const P = chosenPolicies(policies);
     const w = who(u, m);
     const hon = shortHon(m) + " " + lastName(m.name);
-    const why = [u.note, ...callLines(angles, angleIds, policies, ctx.callLines)].filter(Boolean);
+    const why = [u.note, ...linkReasons(callLines(angles, angleIds, policies, ctx.callLines))].filter(Boolean);
     const o = [];
     o.push("");  // heading, filled in below once the spoken part is known
     o.push("");
@@ -193,7 +193,7 @@
     if (isAlly(m) && long) o.push(`First, thank you to ${hon} for taking the risks of advanced AI seriously.`);
     o.push(P.length ? `I'm calling to ask ${hon} to support ${listJoin(P.map(askShort))}.` : "[Choose at least one ask above.]");
     if (long && P.includes("RSI")) o.push("By AI that improves itself, I mean AI systems that automate their own research and development, building the next generation faster than people can check it.");
-    if (why.length) o.push("Here's why I think we should do this.", ...why);
+    o.push(...why);
     if (localLine) o.push(localLine);
     if (ctx.roleLine) o.push(aboutMember(ctx.roleLine, hon));
     o.push(`Can you tell me where ${hon} stands on this? Thank you."`);
@@ -206,6 +206,20 @@
 
   // Call scripts use one sentence per checked argument (messages.json callLines), falling back to
   // the argument's first sentence for the checked asks. Arguments the checked asks can't use are skipped.
+  // The one-liners read as one run: "We should do this because …", then "Also, …", "On top of that, …",
+  // and "Finally, …" on the last of three or more. Each one-liner's first letter is lowercased unless
+  // it starts with an acronym (AI, U.S.) or a name in KEEP_CAPS.
+  const KEEP_CAPS = new Set(["I", "I'm", "Congress", "America", "American", "Americans", "China", "Republicans", "Democrats"]);
+  const MID_LINKS = ["Also, ", "On top of that, ", "Plus, ", "Beyond that, "];
+  function lowerFirst(s) {
+    const w = s.split(/[\s,:;]/)[0];
+    return /^[A-Z][A-Z.]+$/.test(w) || KEEP_CAPS.has(w) ? s : s.charAt(0).toLowerCase() + s.slice(1);
+  }
+  function linkReasons(lines) {
+    const n = lines.length;
+    return lines.map((t, i) => (i === 0 ? "We should do this because " : i === n - 1 && n > 2 ? "Finally, " : MID_LINKS[(i - 1) % MID_LINKS.length]) + lowerFirst(t));
+  }
+
   function callLines(angles, angleIds, policies, lines = {}) {
     const byId = Object.fromEntries(angles.map(a => [a.id, a]));
     return angleIds.map(id => byId[id]).filter(a => a && angleUsable(a, policies))
