@@ -1,5 +1,5 @@
 {
-  "_about": "Hand-edited message copy (not generated). startChecked.count: how many arguments begin checked, picked at random from those whose Suits groups match the member's ideology. local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
+  "_about": "Hand-edited message copy (not generated). startChecked.count: how many arguments begin checked, picked at random from the member's own recommended arguments (or, without a list, those whose Suits groups match their ideology). local: the state sentence, checked by default; either a string or {text, preempt, otherwise, to}: preempt is added only when the preemption ask is checked (otherwise is added when it isn't), and to replaces the whole line when the message goes to the member it names (keyed by name in data.json). responsibilities: optional sentence for members with leadership or committee roles, keyed by name.",
   "startChecked": {
     "count": 1
   },
@@ -165,29 +165,29 @@
     "If you work in AI or policy and would rather not be public, private meetings are fine. You don't need to sign public letters."
   ],
   "voterStats": {
-    "_about": "Voter-support figures for the meeting leave-behind, one group per checked ask. Republicans get \"R\"; everyone else gets \"all\" (no Democrat-only polls in the research). From the research spreadsheet's evidence column; keep the source and date on each.",
+    "_about": "Voter-support figures for the meeting leave-behind, one group per checked ask. Republicans get \"R\"; everyone else gets \"all\" (no Democrat-only polls in the research). Checked against the original releases on 26 Nov 2026; keep the source and date on each.",
     "all": {
       "RSI": [
-        "82% of voters say companies shouldn't build smarter-than-human AI until they can show it can be controlled, and 86% want a guaranteed off-switch (Public Citizen poll memo, Sept 2026)."
+        "82% of voters say companies shouldn't build smarter-than-human AI until they can show it can be controlled, and 86% want a guaranteed off-switch (AI Policy Institute, June 2026)."
       ],
       "OVS": [
         "86% of Americans want AI companies held to safety standards even if it slows progress (Quinnipiac, Sept 2026).",
         "75% want independent experts to test new AI before it's widely used (SCSP-Gallup, 2026)."
       ],
       "PAUSE": [
-        "68% of likely voters support pausing advanced AI until federal safety rules are in place (Data for Progress, Sept 2026)."
+        "68% of likely voters back a bill that would pause advanced AI until federal safety rules are in place (Data for Progress, 2026)."
       ]
     },
     "R": {
       "RSI": [
-        "83% of Republicans want a guaranteed off-switch for AI (Public Citizen poll memo, Sept 2026)."
+        "83% of Republicans want a guaranteed off-switch for AI (AI Policy Institute, June 2026)."
       ],
       "OVS": [
-        "71% of Republican voters say independent security testing should be required by law for the most advanced AI (ARI/Morning Consult, May 2026).",
-        "90% of Trump voters support vetting AI models before release (Institute for Family Studies, May 2026)."
+        "71% of Republican voters say independent security testing should be required by law for the most advanced AI (Americans for Responsible Innovation, May 2026).",
+        "90% of Trump voters support vetting AI models before release (Institute for Family Studies/YouGov, May 2026)."
       ],
       "PAUSE": [
-        "63% of Republicans back pausing advanced AI until safety rules exist (Data for Progress, 2026)."
+        "63% of Republicans back a bill that would pause advanced AI until safety rules exist (Data for Progress, 2026)."
       ]
     }
   }

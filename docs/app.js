@@ -10,7 +10,10 @@ const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
 let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {}, meetingTips: [], voterStats: {} };
-const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
+// drafts: the visitor's own edits, per member, format and text box. custom: they changed the asks or
+// arguments, so those carry over to the next member. done: members whose text they've copied.
+const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(),
+  drafts: new Map(), custom: false, done: new Set() };
 
 
 // ---------- Step 1: find members ----------
@@ -199,12 +202,15 @@ function choose(st, dist) {
 }
 
 // ---------- Step 2: cards ----------
+const isPending = m => /TBD/.test(m.party) || /TBD/.test(m.name);
 function renderCards() {
   $("cards").innerHTML = S.members.map((m, i) => {
-    const pending = /TBD/.test(m.party) || /TBD/.test(m.name);
+    const pending = isPending(m), done = S.done.has(memberKey(m));
+    // Seats without a member yet can't be chosen; say why.
+    const why = /runoff/i.test(m.name) ? "Result not in yet" : "Seat not filled yet";
     return `<button type="button" class="card" data-i="${i}" aria-pressed="${m === S.sel}" ${pending ? "disabled" : ""}>
       <span class="nm">${esc(m.name)}</span>
-      <span class="meta">${m.chamber === "Senate" ? "Senator" : "Representative"}${pending ? "" : " · " + esc(m.party)}</span></button>`;
+      <span class="meta">${m.chamber === "Senate" ? "Senator" : "Representative"} · ${pending ? why : esc(m.party)}${done ? ' · <span class="done">✓ Copied</span>' : ""}</span></button>`;
   }).join("") || `<p>No members found for that choice.</p>`;
 }
 
@@ -216,17 +222,36 @@ const shortName = m => `${G.honorific(m)} ${G.lastName(m.name)}`;
 
 function selectMember(m) {
   S.sel = m;
-  S.policies = G.defaultPolicies(m);
-  S.pool = G.ideologyAngles(m, D.angles);
-  S.start = G.startAngles(m, D.angles, S.policies, MSG.startChecked);
-  S.angles = new Set(S.start);
-  S.userEdited = false;
+  S.pool = G.suggestedAngles(m, D.angles);
+  if (S.custom) {
+    // The visitor changed the asks or arguments: keep their choices for this member too.
+    S.start = [...S.angles];
+  } else {
+    S.policies = G.defaultPolicies(m);
+    S.start = G.startAngles(m, D.angles, S.policies, MSG.startChecked);
+    S.angles = new Set(S.start);
+  }
   S.localEdited = false;
   syncChoices();
   [...$("cards").children].forEach((c, i) => c.setAttribute?.("aria-pressed", String(S.members[i] === m)));
-  renderPolicies(); renderAngles(); renderLocal(); renderRole();
+  renderRecord(); renderPolicies(); renderAngles(); renderLocal(); renderRole();
   $("s3").classList.remove("hidden");
+  $("outCol").scrollTop = 0;
   render();
+}
+
+// What we found on the member's AI record, for visitors who want to tailor the message.
+function renderRecord() {
+  const m = S.sel, c = contactOf(m), who = esc(shortName(m)), rec = (m.record || "").trim();
+  const none = !rec || /no ai-specific record/i.test(rec);
+  const found = { High: "a lot", Med: "some", Low: "little" }[m.confidence];
+  const links = [c?.site && ext(c.site, `${who}'s website ↗`),
+    ext("https://duckduckgo.com/?ia=news&q=" + encodeURIComponent(`"${m.name}" artificial intelligence`), `Search the news for ${who} on AI ↗`)].filter(Boolean).join(" · ");
+  $("recSum").textContent = `${shortName(m)}'s record on AI`;
+  $("recBody").innerHTML = `${m.role ? `<p><b>Committees and roles:</b> ${esc(m.role)}</p>` : ""}
+    <p>${none ? `We didn't find an AI-specific record for ${who}. A sentence in your own words about why this matters to you will stand out.` : esc(rec)}</p>
+    <p class="src">From our research snapshot, November 2026${found && !none ? `. We found ${found} on their AI record` : ""}. Check their latest statements before you send.</p>
+    <p>${links}</p>`;
 }
 function renderPolicies() {
   const help = { RSI: "Limits on AI that automates its own research and development.", OVS: "Licensed third-party testing and an emergency off-switch.", PAUSE: "A verifiable agreement, including China, to pause the most advanced AI.",
@@ -234,7 +259,7 @@ function renderPolicies() {
   $("polBox").innerHTML = "<legend>What to ask for</legend>" + G.POLICY_ORDER.map(p =>
     `<label><input type="checkbox" data-p="${p}" ${S.policies[p] ? "checked" : ""}><span>${esc(G.POLICY_LABEL[p])}<small>${esc(help[p])}</small></span></label>`).join("");
 }
-// Display order: the start-checked reasons, then the other reasons aimed at the member's ideology, then everything else.
+// Display order: the start-checked reasons, then the member's other suggested reasons, then everything else.
 function angleOrder() {
   const all = D.angles.map(a => a.id);
   const sug = [...new Set([...S.start, ...S.pool])].filter(id => all.includes(id));
@@ -253,6 +278,7 @@ function renderAngles() {
   $("angBox").classList.toggle("hidden", !withArgs());
   $("lenBox").classList.toggle("hidden", S.kind === "meeting");
   $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
+    `<p class="tap">Tick a box to use an argument. Click or tap its name to preview what it adds.</p>` +
     sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
 }
 // Hover preview: the sentences this argument adds under each checked ask (once each, as in the email).
@@ -341,15 +367,77 @@ function render() {
   $("outWrap").classList.toggle("hidden", meet);
   $("howto").classList.toggle("hidden", meet);
   $("meet").classList.toggle("hidden", !meet);
+  // Each text box shows the visitor's edited version if they have one, otherwise a fresh build.
+  const fresh = {};
   if (meet) {
     const parts = G.meetingParts(c0);
-    [["mReq", "request"], ["mAgenda", "agenda"], ["mLeave", "leave"], ["mThanks", "thanks"]].forEach(([id, k]) => { $(id).innerHTML = toHTML(parts[k]); });
-  } else $("out").innerHTML = toHTML(G.build(S.kind, c0));
+    Object.assign(fresh, { mReq: parts.request, mAgenda: parts.agenda, mLeave: parts.leave, mThanks: parts.thanks });
+  } else fresh.out = G.build(S.kind, c0);
+  if (email) fresh.subj = G.emailSubject(c0);
+  for (const [id, text] of Object.entries(fresh)) {
+    const el = $(id), draft = S.drafts.get(draftKey(id));
+    if (isField(el)) { const v = draft ?? text; if (el.value !== v) el.value = v; }
+    else { const h = draft ?? toHTML(text); if (el.innerHTML !== h) el.innerHTML = h; }
+  }
   $("subjRow").classList.toggle("hidden", !email);
-  if (email) $("subj").value = G.emailSubject(c0);
+  renderEditNotes();
   renderHowTo();
   renderQA();
+  renderNext();
   fitOut();
+}
+
+// ---------- the visitor's own edits ----------
+// Once the visitor types in a text box, their version is kept (per member, format and box), so
+// changing an option never wipes their words. "Rewrite from options" drops it and builds the text again.
+// Groups share one note and one Rewrite button: an email's subject goes with its message.
+const GROUPS = { email: { out: ["subj", "out"] }, call: { out: ["out"] },
+  meeting: { mReq: ["mReq"], mAgenda: ["mAgenda"], mLeave: ["mLeave"], mThanks: ["mThanks"] } };
+const EDITABLE = ["subj", "out", "mReq", "mAgenda", "mLeave", "mThanks"];
+const draftKey = id => `${memberKey(S.sel)}|${S.kind}|${id}`;
+const isField = el => /^(TEXTAREA|INPUT)$/.test(el.tagName);
+function saveDraft(id) {
+  const el = $(id);
+  S.drafts.set(draftKey(id), isField(el) ? el.value : el.innerHTML);
+  renderEditNotes();
+}
+// A note under each edited text, made the first time it's needed.
+function renderEditNotes() {
+  document.querySelectorAll(".edit-note").forEach(n => n.classList.add("hidden"));
+  for (const [anchor, ids] of Object.entries(GROUPS[S.kind] || {})) {
+    if (!ids.some(id => S.drafts.has(draftKey(id)))) continue;
+    let note = $("note-" + anchor);
+    if (!note) {
+      note = document.createElement("p");
+      note.className = "edit-note"; note.id = "note-" + anchor;
+      note.innerHTML = `<span>You've edited this, so changing an option won't rewrite it.</span><button type="button" class="ghost" data-rewrite="${anchor}">Rewrite from options</button>`;
+      $(anchor).closest(".paper").after(note);
+    }
+    note.classList.remove("hidden");
+  }
+}
+function rewrite(anchor) {
+  if (!confirm("Replace your edited text with a fresh version built from the options? Your edits will be lost.")) return;
+  GROUPS[S.kind][anchor].forEach(id => S.drafts.delete(draftKey(id)));
+  render();
+}
+
+// After copying one member's text, offer the next member. Choices and About you carry over.
+function renderNext() {
+  const ok = S.members.filter(m => !isPending(m)), bar = $("nextBar");
+  bar.classList.toggle("hidden", ok.length < 2);
+  if (ok.length < 2) return;
+  const i = ok.indexOf(S.sel), order = [...ok.slice(i + 1), ...ok.slice(0, i)];
+  const n = ok.filter(m => S.done.has(memberKey(m))).length;
+  const next = order.find(m => !S.done.has(memberKey(m)));
+  bar.innerHTML = next
+    ? `<p>${n ? `${n} of ${ok.length} copied. ` : ""}Your details carry over, and so do any asks or arguments you changed.</p>
+       <button type="button" data-next="${S.members.indexOf(next)}">Next: ${esc(G.honorific(next))} ${esc(next.name)} →</button>`
+    : `<p>All ${ok.length} copied. Thank you for speaking up.</p>`;
+}
+function markDone() {
+  S.done.add(memberKey(S.sel));
+  renderCards(); renderNext();
 }
 
 // Miles between two points (haversine), for sorting local offices.
@@ -485,10 +573,17 @@ function bind() {
   $("cards").addEventListener("click", e => { const c = e.target.closest(".card"); if (c && !c.disabled) selectMember(S.members[+c.dataset.i]); });
   document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener("change", e => { S.kind = e.target.value; renderAngles(); render(); }));
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; renderAngles(); render(); }));
-  $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
-  $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
+  // Changing the asks or arguments makes them the visitor's own, so they carry over to the next member.
+  $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.custom = true; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
+  $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; S.custom = true; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
   $("angBox").addEventListener("pointerover", e => { const l = e.target.closest("label"); if (l && e.pointerType === "mouse") showAngleTip(l); });
-  $("angBox").addEventListener("pointerout", e => { const l = e.target.closest("label"); if (l && !l.contains(e.relatedTarget)) hideAngleTip(); });
+  $("angBox").addEventListener("pointerout", e => { const l = e.target.closest("label"); if (l && e.pointerType === "mouse" && !l.contains(e.relatedTarget)) hideAngleTip(); });
+  // Clicking or tapping an argument's name previews it; only the checkbox itself selects it.
+  $("angBox").addEventListener("click", e => {
+    const l = e.target.closest("label"); if (!l || e.target.matches("input")) return;
+    e.preventDefault(); showAngleTip(l);
+  });
+  document.addEventListener("click", e => { if (!e.target.closest?.("#angBox label")) hideAngleTip(); });
   $("angBox").addEventListener("focusin", e => { if (e.target.dataset.a && e.target.matches(":focus-visible")) showAngleTip(e.target.closest("label")); });
   $("angBox").addEventListener("focusout", hideAngleTip);
   addEventListener("scroll", hideAngleTip, { passive: true });
@@ -502,6 +597,14 @@ function bind() {
   // Paste plain text so the browser doesn't carry styles into the message.
   document.querySelectorAll(".paper .out").forEach(el => { try { el.contentEditable = "plaintext-only"; } catch { el.contentEditable = "true"; } });
   $("out").addEventListener("input", retimeCall);
+  // Keep the visitor's edits (after retimeCall, so a call script's draft has the updated time).
+  EDITABLE.forEach(id => $(id).addEventListener("input", () => saveDraft(id)));
+  $("outCol").addEventListener("click", e => { const b = e.target.closest("[data-rewrite]"); if (b) rewrite(b.dataset.rewrite); });
+  $("nextBar").addEventListener("click", e => {
+    const b = e.target.closest("[data-next]"); if (!b) return;
+    selectMember(S.members[+b.dataset.next]);
+    $("s3").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
   // Print just the leave-behind, as edited: copy it into #printArea, which the print styles in
   // index.html show alone while this class is on.
   $("printLeave").addEventListener("click", () => {
@@ -520,11 +623,15 @@ function bind() {
           "text/plain": new Blob([text], { type: "text/plain" }) })]);
       } else await navigator.clipboard.writeText(text);
       b.textContent = "Copied";
+      $("srStatus").textContent = "Copied to the clipboard.";
     } catch {
       if (rich) { const r = document.createRange(); r.selectNodeContents(src); getSelection().removeAllRanges(); getSelection().addRange(r); }
       else src.select();
       b.textContent = "Press Ctrl/Cmd+C";
+      $("srStatus").textContent = "The text is selected. Press Control or Command C to copy it.";
     }
+    setTimeout(() => ($("srStatus").textContent = ""), 4000);
+    if (src.id !== "subj") markDone();
     setTimeout(() => (b.textContent = label), 1800);
   }));
 }

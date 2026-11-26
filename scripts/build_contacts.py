@@ -11,9 +11,10 @@ Members who aren't sworn in yet get no entry; the site falls back to the Capitol
 
 Members of Congress don't publish email addresses. Email goes through the contact form on
 each member's website, so `form` is that page:
-- Senate: the dataset's contact_form, or a checked page from SENATE_FORMS below.
-- House: <site>/contact, the House web platform's standard contact path. House sites block
-  automated requests, so these links aren't checked by this script.
+- Senate: a checked page from SENATE_FORMS below, else the dataset's contact_form.
+- House: a checked page from HOUSE_FORMS below, else <site>/contact, the House web platform's
+  standard contact path. This script doesn't check links; on 26 Nov 2026 every form, site and
+  meeting link was checked with browser-like requests and the exceptions were added below.
 
 For in-person meetings:
 - `meeting`: a senator's meeting/scheduling request page, found by scanning their site's links.
@@ -71,6 +72,13 @@ SENATE_FORMS = {
     "John Curtis": "https://www.curtis.senate.gov/contact/",
     "Jim Justice": "https://www.justice.senate.gov/contact/",
 }
+# House members whose site doesn't use the standard /contact path (checked by hand, Nov 2026).
+HOUSE_FORMS = {
+    "Austin Scott": "https://austinscott.house.gov/contact-austin",
+    "Jim Clyburn": "https://clyburn.house.gov/email-me/",
+    "Terri Sewell": "https://sewell.house.gov/email-me",
+    "Frank Pallone": "https://palloneforms.house.gov/contact/",
+}
 NICK = {"jim": "james", "bill": "william", "bob": "robert", "rob": "robert", "tom": "thomas", "mike": "michael",
         "hal": "harold", "maggie": "margaret", "lou": "luis", "chris": "christopher", "dan": "daniel", "dave": "david",
         "joe": "joseph", "chuck": "charles", "dick": "richard", "rick": "richard", "jack": "john", "tim": "timothy",
@@ -121,10 +129,11 @@ def main(src, offices_src):
             continue
         t = hits[0]["terms"][-1]
         site = (t.get("url") or "").rstrip("/")
+        # Hand-checked pages win: some dataset links point at a homepage that refuses requests.
         if m["chamber"] == "Senate":
-            form = t.get("contact_form") or SENATE_FORMS.get(m["name"]) or site
+            form = SENATE_FORMS.get(m["name"]) or t.get("contact_form") or site
         else:
-            form = site + "/contact" if site else ""
+            form = HOUSE_FORMS.get(m["name"]) or (site + "/contact" if site else "")
         offs = [{"city": o.get("city", ""), "address": ", ".join(str(x) for x in (o.get("building"), o.get("address"), o.get("suite")) if x),
                  "zip": str(o.get("zip") or ""), "phone": o.get("phone", ""), "lat": o.get("latitude"), "lon": o.get("longitude")}
                 for o in offices.get(hits[0]["id"]["bioguide"], []) if o.get("address")]

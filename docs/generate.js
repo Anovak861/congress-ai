@@ -89,11 +89,22 @@
       tags.some(t => new RegExp("\\b" + t + "\\b").test(a.receptive))).map(a => a.id);
   }
 
-  // Which reasons start checked: cfg.count picked at random from the ideology matches that the
-  // chosen asks can use, so messages from different people don't all argue the same way.
+  // The arguments suggested for a member: their own recommended list from the research (m.angles),
+  // or, for the few without one, the arguments aimed at their ideology.
+  function suggestedAngles(m, angles) {
+    const ids = new Set(angles.map(a => a.id));
+    const own = (m.angles || []).filter(id => ids.has(id));
+    return own.length ? own : ideologyAngles(m, angles);
+  }
+
+  // Which reasons start checked: cfg.count picked at random from the member's suggested arguments
+  // that the chosen asks can use (falling back to their ideology's), so messages from different
+  // people don't all argue the same way.
   function startAngles(m, angles, policies, cfg, rand = Math.random) {
     const byId = Object.fromEntries(angles.map(a => [a.id, a]));
-    const pool = ideologyAngles(m, angles).filter(id => angleUsable(byId[id], policies));
+    const usable = ids => ids.filter(id => angleUsable(byId[id], policies));
+    let pool = usable(suggestedAngles(m, angles));
+    if (!pool.length) pool = usable(ideologyAngles(m, angles));
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     return pool.slice(0, cfg.count);
   }
@@ -334,6 +345,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific, callHeading, wordCount, speakTime, callLines, askShort, meetingParts };
+  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, suggestedAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific, callHeading, wordCount, speakTime, callLines, askShort, meetingParts };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);
