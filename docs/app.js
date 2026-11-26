@@ -367,6 +367,8 @@ function render() {
   $("outWrap").classList.toggle("hidden", meet);
   $("howto").classList.toggle("hidden", meet);
   $("meet").classList.toggle("hidden", !meet);
+  // On wide screens a meeting's texts go below the options instead of beside them (index.html, .build.stack).
+  document.querySelector(".build").classList.toggle("stack", meet);
   // Each text box shows the visitor's edited version if they have one, otherwise a fresh build.
   const fresh = {};
   if (meet) {
@@ -431,7 +433,7 @@ function renderNext() {
   const n = ok.filter(m => S.done.has(memberKey(m))).length;
   const next = order.find(m => !S.done.has(memberKey(m)));
   bar.innerHTML = next
-    ? `<p>${n ? `${n} of ${ok.length} copied. ` : ""}Your details carry over, and so do any asks or arguments you changed.</p>
+    ? `${n ? `<p>${n} of ${ok.length} copied.</p>` : "<span></span>"}
        <button type="button" data-next="${S.members.indexOf(next)}">Next: ${esc(G.honorific(next))} ${esc(next.name)} →</button>`
     : `<p>All ${ok.length} copied. Thank you for speaking up.</p>`;
 }

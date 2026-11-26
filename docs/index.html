@@ -72,7 +72,11 @@ button.ghost{background:transparent;color:var(--ink)}
   header,main,footer{max-width:1680px;padding-left:max(3vw,24px);padding-right:max(3vw,24px)}
   .build{max-width:none;display:grid;grid-template-columns:minmax(360px,5fr) minmax(0,7fr);gap:clamp(24px,2.6vw,44px);align-items:start}
   .out-col{margin-top:0;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain;padding:2px 6px 8px 2px}
-  .out-col .howto{margin-top:16px}
+  /* An in-person meeting has four texts to work through, so they go below the options instead of beside them. */
+  .build.stack{grid-template-columns:minmax(0,1fr);max-width:1100px}
+  .build.stack .out-col{position:static;max-height:none;overflow:visible;padding:0}
+  .build.stack~.howto,.build.stack~.qa,.build.stack~.nextbar{max-width:1100px}
+  .qa .lead,.qa dl,.qa .tips{max-width:90ch}
 }
 @media(max-width:560px){
   form.find button{flex:1 1 100%}
@@ -248,7 +252,6 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
           </div>
           <div class="paper"><div class="out" id="out" role="textbox" aria-multiline="true" aria-label="Your message" spellcheck="true"></div></div>
         </div>
-        <div class="howto" id="howto" aria-live="polite"></div>
         <!-- In-person meeting: four separate texts to edit and copy, in the order you'll use them. -->
         <div class="meet hidden" id="meet">
           <p class="hint">You can edit each text below. Your edits are kept when you change an option.</p>
@@ -282,10 +285,12 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
             <div class="paper"><div class="out" id="mThanks" role="textbox" aria-multiline="true" aria-label="Thank-you email" spellcheck="true"></div></div>
           </section>
         </div>
-        <div class="qa hidden" id="qa"></div>
-        <div class="nextbar hidden" id="nextBar"></div>
       </div>
     </div>
+    <!-- Below everything in step 3: where to send it, staff questions and tips, then the next member. -->
+    <div class="howto" id="howto" aria-live="polite"></div>
+    <div class="qa hidden" id="qa"></div>
+    <div class="nextbar hidden" id="nextBar"></div>
   </section>
 </main>
 <footer>Member data: research snapshot from the incoming 120th Congress (Nov 2026), built from AP race calls, the Congressional AI Tracker, bill cosponsor lists and campaign coverage. Office phone numbers and contact forms come from the <a href="https://github.com/unitedstates/congress-legislators" target="_blank" rel="noopener">congress-legislators</a> dataset. District lookup uses the U.S. Census geocoder. Address suggestions come from <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a> using &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</footer>
@@ -293,7 +298,7 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
 <div id="angTip" class="angtip" role="tooltip" hidden></div>
 <div id="srStatus" class="sr-only" aria-live="polite"></div>
 <div id="printArea" aria-hidden="true"></div>
-<script src="generate.js?v=2026-11-26b"></script>
-<script src="app.js?v=2026-11-26b"></script>
+<script src="generate.js?v=2026-11-26e"></script>
+<script src="app.js?v=2026-11-26e"></script>
 </body>
 </html>
