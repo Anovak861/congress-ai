@@ -121,7 +121,7 @@
     "_about": "Shown beside call scripts (not part of the script): \"any\" always, then one group per checked ask. {hon} becomes \"Senator X\" / \"Rep. X\". Facts checked Nov 2026; keep dates on anything that can go stale.",
     "any": [
       { "q": "Are you calling for an organization?", "a": "Say you're calling as a constituent. Offices count calls from the people they represent." },
-      { "q": "Is there a specific bill?", "a": "You don't need one. Say: \"I'd like {hon} to support legislation that does this. Is there a bill {hon} supports?\" Offices log calls by issue and position." },
+      { "q": "Is there a specific bill?", "a": "You don't need one. Say: \"I'd like {hon} to support legislation that does this. Is there a bill {hon} supports?\" Offices track constituents' views by issue and position." },
       { "q": "Won't regulation hurt innovation?", "a": "These asks are narrow. They leave chatbots, medical tools and business software alone and focus on the most powerful systems." },
       { "q": "What about China?", "a": "Most voters want both to keep up with China and to have guardrails. Any international agreement should be verifiable and bind China too." },
       { "q": "\"I'm not sure where {hon} stands.\"", "a": "Ask them to note your position and pass it along. Leave your name and ZIP code so they can follow up." }
@@ -152,5 +152,14 @@
       { "q": "Aren't whistleblowers already protected?", "a": "Mostly when they report illegal acts like fraud. Many AI safety risks aren't illegal, so workers who raise them can be fired. The bipartisan AI Whistleblower Protection Act, introduced in 2025, would close that gap." },
       { "q": "Why report incidents within hours?", "a": "So problems are caught before they spread. Banks must tell their regulators about serious computer-security incidents within 36 hours, and New York's RAISE Act will require AI incident reports within 72 hours." }
     ]
-  }
+  },
+  "meetingTips": [
+    "Meeting with a staffer instead of {hon} is normal and worthwhile. The staffer who covers technology often shapes {hon}'s position.",
+    "Arrive 10 to 15 minutes early. Many congressional office buildings have security screening, and staff schedules are tight, so keep to your 20 minutes.",
+    "Open with your own story. Personal and local carries more weight than technical detail.",
+    "Bring two printed copies of the leave-behind: one for the staffer and one for yourself.",
+    "Going with others? Keep the group small and decide beforehand who covers which part of the agenda.",
+    "Ask for the staffer's email address or business card so you can send the thank-you.",
+    "If you work in AI or policy and would rather not be public, private meetings are fine. You don't need to sign public letters."
+  ]
 }

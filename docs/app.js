@@ -9,7 +9,7 @@ const VER = new URL(document.currentScript.src).search;
 const REDRAWN = new Set(["CA", "TX", "MO", "NC", "OH", "UT"]);
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
 
-let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {} };
+let D = null, CONTACTS = {}, MSG = { startChecked: { count: 1 }, local: {}, responsibilities: {}, callLines: {}, staffQuestions: {}, meetingTips: [] };
 const S = { state: "", district: null, members: [], sel: null, kind: "email", long: false, policies: {}, angles: new Set(), userEdited: false };
 
 
@@ -332,8 +332,15 @@ function ctx() {
 }
 function render() {
   if (!S.sel) return;
-  const c0 = ctx(), email = S.kind === "email";
-  $("out").innerHTML = toHTML(G.build(S.kind, c0));
+  const c0 = ctx(), email = S.kind === "email", meet = S.kind === "meeting";
+  // A meeting is four separate editable texts; email and call are one.
+  $("outWrap").classList.toggle("hidden", meet);
+  $("howto").classList.toggle("hidden", meet);
+  $("meet").classList.toggle("hidden", !meet);
+  if (meet) {
+    const parts = G.meetingParts(c0);
+    [["mReq", "request"], ["mAgenda", "agenda"], ["mLeave", "leave"], ["mThanks", "thanks"]].forEach(([id, k]) => { $(id).innerHTML = toHTML(parts[k]); });
+  } else $("out").innerHTML = toHTML(G.build(S.kind, c0));
   $("subjRow").classList.toggle("hidden", !email);
   if (email) $("subj").value = G.emailSubject(c0);
   renderHowTo();
@@ -360,6 +367,7 @@ const ext = (href, text, cls = "") => `<a class="${cls}" href="${esc(href)}" tar
 
 // The "how to send it" box: only the instructions for the chosen format.
 function renderHowTo() {
+  if (S.kind === "meeting") return renderMeetInfo();
   const m = S.sel, c = contactOf(m), who = esc(shortName(m)), box = $("howto");
   if (!c) {
     // Members-elect have no official office (and so no official email, form or phone) until they're sworn in.
@@ -370,9 +378,7 @@ function renderHowTo() {
       ? `<h3>How to send it</h3><p>${until}</p>${find}
          <ol><li>Send it now through the contact form on their campaign website. It reaches their campaign team, not an official office.</li>
          <li>Or keep it and send it through their official contact form after January 3.</li></ol>`
-      : S.kind === "call"
-      ? `<h3>Who to call</h3><p>${until}</p>${find}<p>Campaign websites usually list a phone number. Their official office number starts working after January 3.</p>`
-      : `<h3>How to request a meeting</h3><p>${until}</p>${find}<p>Meeting requests go to the official office once it opens. Before then, you can ask through their campaign website.</p>`;
+      : `<h3>Who to call</h3><p>${until}</p>${find}<p>Campaign websites usually list a phone number. Their official office number starts working after January 3.</p>`;
     return;
   }
   if (S.kind === "email") {
@@ -393,30 +399,47 @@ function renderHowTo() {
         <li>Polite and local matters more than detailed.</li>
       </ul>
       ${near ? `<p class="sub">${S.coords ? "Nearest local office" : "Local offices"}</p>${near}` : ""}`;
-  } else {
-    const offices = officeList(c, 2);
-    box.innerHTML = `<h3>How to request a meeting</h3>
-      ${c.meeting
-        ? ext(c.meeting, `Open ${who}'s meeting request form ↗`, "big")
-        : ext(c.site, `Go to ${who}'s website ↗`, "big") + `<p>Look for "Meeting request" or "Schedule a meeting" under Contact or Services. You can also call the office: ${telLink(c.phone)}.</p>`}
-      <p>Ask for 20 minutes with ${who} or the staffer who covers technology and AI. A local office is the easiest place to start.</p>
-      ${offices ? `<p class="sub">${S.coords ? "Local offices, nearest first" : "Local offices"}</p>${offices}` : ""}`;
   }
 }
 
-// Call scripts only: likely staff questions with short answers (messages.json staffQuestions),
-// a general group plus one group per checked ask. Read-only, outside the script.
+// Step 1 of a meeting: where to send the request (above the request text) and the local offices (below it).
+function renderMeetInfo() {
+  const m = S.sel, c = contactOf(m), who = esc(shortName(m));
+  if (!c) {
+    $("mReqInfo").innerHTML = `<p>${who} is sworn in on January 3, 2027. Until then there's no official office to meet in.</p>
+      ${ext("https://duckduckgo.com/?q=" + encodeURIComponent(`${m.name} ${G.STATE_NAMES[m.state]} campaign website`), `Find ${who}'s campaign website ↗`, "big")}
+      <ol><li>Send the request below through their campaign website now, or keep it and send it to their official office after January 3.</li>
+      <li>Send it at least three or four weeks before you hope to meet.</li></ol>`;
+    $("mOffices").innerHTML = "";
+    return;
+  }
+  const phone = c.phone ? telLink(c.phone) : telLink("202-224-3121") + " (the Capitol switchboard; ask for the office)";
+  $("mReqInfo").innerHTML = (c.meeting
+      ? ext(c.meeting, `Open ${who}'s meeting request form ↗`, "big")
+      : ext(c.site, `Go to ${who}'s website ↗`, "big") + `<p>Look for "Meeting request" or "Schedule a meeting", usually under Contact.</p>`) + `
+    <ol><li>Copy the request below into the form${c.meeting ? "" : " (or email it to the office)"}, filling in your email and phone number.</li>
+    <li>Send it at least three or four weeks before you hope to meet. A local office is the easiest place to start; Washington meetings are usually with policy staff.</li>
+    <li>If you don't hear back within two weeks, call ${phone} and ask for the scheduler.</li></ol>`;
+  const offices = officeList(c, 2);
+  $("mOffices").innerHTML = offices ? `<p class="sub">${S.coords ? "Local offices, nearest first" : "Local offices"}</p>${offices}` : "";
+}
+
+// Calls and meetings: likely staff questions with short answers (messages.json staffQuestions),
+// a general group plus one group per checked ask. Meetings also get tips first. Read-only.
 function renderQA() {
-  const box = $("qa"), Q = MSG.staffQuestions || {};
-  box.classList.toggle("hidden", S.kind !== "call");
-  if (S.kind !== "call") return;
+  const box = $("qa"), Q = MSG.staffQuestions || {}, call = S.kind === "call";
+  box.classList.toggle("hidden", S.kind === "email");
+  if (S.kind === "email") return;
   const hon = esc(`${S.sel.chamber === "Senate" ? "Senator" : "Rep."} ${G.lastName(S.sel.name)}`);
   const fill = t => esc(t).replaceAll("{hon}", hon);
   const group = (title, items) => items?.length ? `<h4>${esc(title)}</h4><dl>${items.map(x =>
     `<dt>${fill(x.q)}</dt><dd>${fill(x.a)}</dd>`).join("")}</dl>` : "";
-  box.innerHTML = `<h3>If staff ask questions</h3>
-    <p class="lead">Most calls are quick, and you don't need to know all of this. "I'm not sure, but I'd still like ${hon} to support it" is a fine answer.</p>
-    ${group("Any call", Q.any)}
+  const tips = call ? "" : `<h3>5. Tips</h3><ul class="tips">${(MSG.meetingTips || []).map(t => `<li>${fill(t)}</li>`).join("")}</ul>`;
+  box.innerHTML = `${tips}<h3${call ? "" : ' class="next"'}>If staff ask questions</h3>
+    <p class="lead">${call ? "Most calls are quick, and you" : "You"} don't need to know all of this. ${call
+      ? `"I'm not sure, but I'd still like ${hon} to support it" is a fine answer.`
+      : `"I'm not sure, but I can find out and follow up" is a fine answer, and it gives you a reason to write again.`}</p>
+    ${group(call ? "Any call" : "Any meeting", Q.any)}
     ${G.POLICY_ORDER.filter(p => S.policies[p]).map(p => group(G.POLICY_LABEL[p], Q[p])).join("")}`;
 }
 
@@ -471,11 +494,11 @@ function bind() {
   window.addEventListener("resize", fitOut);
   ["uName", "uCity", "uZip", "uNote"].forEach(id => $(id).addEventListener("input", render));
   // Paste plain text so the browser doesn't carry styles into the message.
-  try { $("out").contentEditable = "plaintext-only"; } catch { $("out").contentEditable = "true"; }
+  document.querySelectorAll(".paper .out").forEach(el => { try { el.contentEditable = "plaintext-only"; } catch { el.contentEditable = "true"; } });
   $("out").addEventListener("input", retimeCall);
   document.querySelectorAll("button.copy").forEach(b => b.addEventListener("click", async () => {
     const src = $(b.dataset.copy), label = (b.dataset.label ||= b.textContent);
-    const rich = src.id === "out", text = rich ? outText() : src.value;
+    const rich = !/^(TEXTAREA|INPUT)$/.test(src.tagName), text = rich ? src.innerText.replace(/\n+$/, "") : src.value;
     try {
       // The message copies as both rich text (bold kept in email apps) and plain text (contact forms).
       if (rich && window.ClipboardItem && navigator.clipboard.write) {

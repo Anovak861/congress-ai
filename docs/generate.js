@@ -226,49 +226,92 @@
       .map(a => lines[a.id] || angleLine(a, policies).text);
   }
 
-  function buildMeeting(ctx) {
-    const { m, u, policies, angleIds, angles, long, localLine } = ctx;
+  // An in-person meeting is four separate texts the visitor edits and copies one at a time:
+  // the request, the agenda, the leave-behind and the thank-you email. Placeholders in [brackets]
+  // are for things only the visitor knows (contact details, the staffer's name, the date).
+  function meetingParts(ctx) {
+    const { m, u, policies, angleIds, angles, localLine } = ctx;
     const P = chosenPolicies(policies);
     const w = who(u, m);
     const lines = pickLines(angles, angleIds, policies);
     const hon = honorific(m) + " " + lastName(m.name);
-    const o = [];
-    o.push("1. REQUEST THE MEETING");
-    o.push("Use the scheduling form on the member's website (or email the scheduler). Allow 4–6 weeks; follow up by phone after 2 weeks if you hear nothing. District offices are easiest for a first meeting; Washington offices are where policy staff sit.");
-    o.push("");
-    o.push("Request text:");
-    o.push(`"Hello, I'm ${w.name}, a constituent from ${w.place}. I'd like to request a 20-minute meeting with ${hon} or the staff member who covers technology and AI, to discuss ${listJoin(P.map(askShort)) || "[your topic]"}. I'm flexible on dates and can meet in the district office or virtually. Thank you."`);
-    o.push("");
-    o.push("2. AGENDA (20 MINUTES)");
-    o.push("- Introductions (2 min): who you are, where you live, why you care.");
-    if (u.note) o.push("    • In your words: " + u.note);
-    if (isAlly(m)) o.push("- Thanks (1 min): acknowledge their work on AI risk (see their record on this page) and ask them to keep leading.");
-    o.push("- The ask (3 min):" + (P.length ? "" : " [choose an ask]"));
-    P.forEach(p => o.push("    • " + askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + "."));
-    if (ctx.roleLine) o.push("    • Their role: " + aboutMember(ctx.roleLine, hon));
-    if (lines.length || localLine) o.push("- Why it matters (8 min):");
-    lines.forEach(l => o.push("    • " + l.name + ": " + l.text));
-    if (localLine) o.push("    • Local angle: " + localLine);
-    o.push("- Their view (4 min): ask what would make it easier for them to support this, and listen.");
-    o.push("- Close (2 min): ask directly: \"Will " + hon + " support this?\" Offer to send more information.");
-    o.push("");
-    o.push("3. LEAVE-BEHIND (ONE OR TWO PAGES)");
-    o.push("- Your name, address and contact details.");
-    o.push("- The specific asks above, each in one sentence.");
-    o.push("- 3–4 supporting points, with a source for each figure.");
-    if (long) o.push("- Polling that fits this office (e.g. bipartisan support for independent testing).");
-    o.push("");
-    o.push("4. AFTERWARDS");
-    o.push("- Send a thank-you email within 24 hours repeating the ask and answering anything you promised.");
-    o.push("- Check in again after 2 weeks and after 4+ weeks.");
-    if (long) {
-      o.push("");
-      o.push("TIPS");
-      o.push("- Staff meetings are normal and valuable; don't be disappointed if the member isn't there.");
-      o.push("- Bring a story about why you care. Personal and local beats technical.");
-      o.push("- If you work in AI or policy and prefer not to be public, private meetings and calls are fine; you don't need to sign public letters.");
+    const topics = listJoin(P.map(askShort)) || "[your topic]";
+    const asks = P.map(p => askText(p, m)[0].toUpperCase() + askText(p, m).slice(1) + ".");
+    const role = ctx.roleLine ? aboutMember(ctx.roleLine, hon) : "";
+    const contact = "[your email and phone number]";
+
+    const request = [
+      "Hello,",
+      "",
+      `I'm ${w.name}, a constituent from ${w.place}. I'd like to request a 20-minute meeting with ${hon} or the staff member who covers technology and AI, to discuss ${topics}.`,
+      "",
+      "I'm flexible on dates and glad to meet at a local office, in Washington or by video. You can reach me at " + contact + ".",
+      "",
+      "Thank you,",
+      w.name,
+      w.place,
+    ].join("\n");
+
+    const a = [];
+    a.push("AGENDA (20 MINUTES)");
+    a.push("");
+    a.push("Introductions (2 min): who you are, where you live, why you care.");
+    if (u.note) a.push("- In your words: " + u.note);
+    if (isAlly(m)) a.push(`Thanks (1 min): thank ${hon} for taking the risks of advanced AI seriously and ask them to keep leading.`);
+    a.push("The ask (3 min):" + (P.length ? "" : " [choose an ask]"));
+    asks.forEach(t => a.push("- " + t));
+    if (lines.length || localLine || role) a.push("Why it matters (8 min):");
+    lines.forEach(l => a.push(`- ${l.name}: ${l.text}`));
+    if (localLine) a.push("- Here at home: " + localLine);
+    if (role) a.push("- Their role: " + role);
+    a.push("Their view (4 min): ask what would make it easier for them to support this, and listen.");
+    a.push(`Close (2 min): ask directly, "Will ${hon} support this?" Offer to send more information, and ask for the staffer's email so you can follow up.`);
+    const agenda = a.join("\n");
+
+    const l = [];
+    l.push("**Keeping AI under human control**");
+    l.push(`A request to ${hon} from ${w.name}, ${w.place}`);
+    l.push("");
+    l.push("**What I'm asking for**");
+    if (asks.length) asks.forEach(t => l.push("- " + t)); else l.push("- [Choose at least one ask above.]");
+    // The page has room for one short point per argument, so it uses the one-liners.
+    const why = [...callLines(angles, angleIds, policies, ctx.callLines), localLine].filter(Boolean);
+    if (why.length || u.note) {
+      l.push("");
+      l.push("**Why it matters**");
+      why.forEach(t => l.push("- " + t));
+      if (u.note) { l.push(""); l.push(u.note); }
     }
-    return o.join("\n");
+    l.push("");
+    l.push("**Contact**");
+    l.push(`${w.name}, ${w.place}`);
+    l.push(contact);
+    const leave = l.join("\n");
+
+    const t = [];
+    t.push("Subject: Thank you for meeting with me about AI safety");
+    t.push("");
+    t.push("Dear [staffer's name],");
+    t.push("");
+    t.push(`Thank you for meeting with me on [date] to discuss ${topics}. I appreciated the chance to share why this matters to me and to people here in ${STATE_NAMES[m.state] || m.state}.`);
+    t.push("");
+    t.push(`As we discussed, I'm asking ${hon} to:`);
+    if (asks.length) P.forEach(p => t.push("- " + askText(p, m) + ".")); else t.push("- [your ask]");
+    t.push("");
+    t.push("[Add anything you promised to send, or answers to questions that came up.]");
+    t.push("");
+    t.push(`I'd be glad to be a resource on this. Please let me know where ${hon} stands, and I'll check in again in a few weeks.`);
+    t.push("");
+    t.push("Thank you,");
+    t.push(w.name);
+    t.push(w.place);
+    const thanks = t.join("\n");
+
+    return { request, agenda, leave, thanks };
+  }
+  function buildMeeting(ctx) {
+    const p = meetingParts(ctx);
+    return ["REQUEST", p.request, "", p.agenda, "", "LEAVE-BEHIND", p.leave, "", "THANK-YOU EMAIL", p.thanks].join("\n");
   }
 
   function build(kind, ctx) {
@@ -277,6 +320,6 @@
     return buildEmail(ctx);
   }
 
-  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific, callHeading, wordCount, speakTime, callLines, askShort };
+  const api = { POLICY_ORDER, LINE_POLICIES, POLICY_LABEL, STATE_NAMES, defaultPolicies, angleUsable, angleLine, startAngles, ideologyAngles, aboutMember, emailSubject, isAlly, build, lastName, honorific, callHeading, wordCount, speakTime, callLines, askShort, meetingParts };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Gen = api;
 })(typeof window !== "undefined" ? window : globalThis);

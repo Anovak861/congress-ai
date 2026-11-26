@@ -97,6 +97,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .howto summary{cursor:pointer;font-size:14px;color:var(--soft);margin-top:8px}
 .howto .tips{margin:10px 0 0;padding-left:20px;font-size:15px}
 .howto .tips li{margin:4px 0}
+.meet>.hint{margin:0;font-size:13px;color:var(--soft)}
+.msec{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-top:16px;background:var(--panel)}
+.msec h3{margin:0 0 8px;font-size:18px}
+.msec>p,.msec>ol{margin:0 0 12px;font-size:15px}
+.msec>ol{padding-left:20px}
+.msec .paperbar{margin-top:12px}
+.msec .paperbar .sub{margin:0}
+.msec .paper .out{min-height:120px;padding:clamp(14px,2.4vw,24px)}
 .qa{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-top:16px;background:var(--panel)}
 .qa h3{margin:0 0 6px;font-size:18px}
 .qa .lead{margin:0;font-size:15px;color:var(--soft)}
@@ -104,6 +112,9 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .qa dl{margin:0;font-size:15px;line-height:1.45}
 .qa dt{font-weight:600;margin-top:10px}
 .qa dd{margin:2px 0 0}
+.qa h3.next{margin-top:22px}
+.qa .tips{margin:6px 0 0;padding-left:20px;font-size:15px;line-height:1.45}
+.qa .tips li{margin:4px 0}
 .hidden{display:none}
 .angtip{position:fixed;z-index:20;margin:0;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--brick);border-radius:4px;box-shadow:0 18px 40px -16px #0008;pointer-events:none;font-size:15px;line-height:1.45}
 .angtip p{margin:0}
@@ -186,12 +197,47 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
           <label for="subj">Subject</label>
           <div class="row"><textarea id="subj" rows="2" spellcheck="true"></textarea><button type="button" class="copy" data-copy="subj">Copy subject</button></div>
         </div>
-        <div class="paperbar">
-          <span class="hint">You can edit the text. Changing an option rewrites it, so copy first.</span>
-          <button type="button" class="copy" data-copy="out" id="copyBtn">Copy message</button>
+        <div id="outWrap">
+          <div class="paperbar">
+            <span class="hint">You can edit the text. Changing an option rewrites it, so copy first.</span>
+            <button type="button" class="copy" data-copy="out" id="copyBtn">Copy message</button>
+          </div>
+          <div class="paper"><div class="out" id="out" role="textbox" aria-multiline="true" aria-label="Your message" spellcheck="true"></div></div>
         </div>
-        <div class="paper"><div class="out" id="out" role="textbox" aria-multiline="true" aria-label="Your message" spellcheck="true"></div></div>
         <div class="howto" id="howto" aria-live="polite"></div>
+        <!-- In-person meeting: four separate texts to edit and copy, in the order you'll use them. -->
+        <div class="meet hidden" id="meet">
+          <p class="hint">You can edit each text below. Changing an option above rewrites them, so copy first.</p>
+          <section class="howto msec">
+            <h3>1. Request a meeting</h3>
+            <div id="mReqInfo"></div>
+            <div class="paperbar"><span class="sub">Request text</span><button type="button" class="copy" data-copy="mReq">Copy request</button></div>
+            <div class="paper"><div class="out" id="mReq" role="textbox" aria-multiline="true" aria-label="Meeting request" spellcheck="true"></div></div>
+            <div id="mOffices"></div>
+          </section>
+          <section class="msec">
+            <h3>2. Agenda</h3>
+            <p>A 20-minute plan for the meeting. Bring it with you; the times are a guide.</p>
+            <div class="paperbar"><span></span><button type="button" class="copy" data-copy="mAgenda">Copy agenda</button></div>
+            <div class="paper"><div class="out" id="mAgenda" role="textbox" aria-multiline="true" aria-label="Agenda" spellcheck="true"></div></div>
+          </section>
+          <section class="msec">
+            <h3>3. Leave-behind</h3>
+            <p>A one-page summary to hand the staffer at the end. Fill in your contact details, paste it into a document and print a copy or two.</p>
+            <div class="paperbar"><span></span><button type="button" class="copy" data-copy="mLeave">Copy leave-behind</button></div>
+            <div class="paper"><div class="out" id="mLeave" role="textbox" aria-multiline="true" aria-label="Leave-behind" spellcheck="true"></div></div>
+          </section>
+          <section class="msec">
+            <h3>4. Thank-you email</h3>
+            <ol>
+              <li>At the meeting, ask the staffer for their email address or business card.</li>
+              <li>Within a day, fill in the brackets below and send it from your own email.</li>
+              <li>If you don't hear back, check in again in two or three weeks.</li>
+            </ol>
+            <div class="paperbar"><span></span><button type="button" class="copy" data-copy="mThanks">Copy email</button></div>
+            <div class="paper"><div class="out" id="mThanks" role="textbox" aria-multiline="true" aria-label="Thank-you email" spellcheck="true"></div></div>
+          </section>
+        </div>
         <div class="qa hidden" id="qa"></div>
       </div>
     </div>
@@ -200,7 +246,7 @@ footer{max-width:1240px;margin:auto;padding:0 max(5vw,16px) 40px;font-size:13px;
 <footer>Member data: research snapshot from the incoming 120th Congress (Nov 2026), built from AP race calls, the Congressional AI Tracker, bill cosponsor lists and campaign coverage. Office phone numbers and contact forms come from the <a href="https://github.com/unitedstates/congress-legislators" target="_blank" rel="noopener">congress-legislators</a> dataset. District lookup uses the U.S. Census geocoder. Address suggestions come from <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a> using &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</footer>
 <!-- Bump ?v= whenever a .js or .json file in docs/ changes, so browsers never mix a new page with cached old scripts or data. -->
 <div id="angTip" class="angtip" role="tooltip" hidden></div>
-<script src="generate.js?v=2026-11-25f"></script>
-<script src="app.js?v=2026-11-25f"></script>
+<script src="generate.js?v=2026-11-25h"></script>
+<script src="app.js?v=2026-11-25h"></script>
 </body>
 </html>
