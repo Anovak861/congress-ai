@@ -249,7 +249,9 @@ function renderAngles() {
     return `<label class="${usable ? "" : "off"}"><input type="checkbox" data-a="${id}" aria-describedby="angTip" ${S.angles.has(id) ? "checked" : ""} ${usable ? "" : "disabled"}><span>${spec.has(id) ? '<span class="star" aria-label="ties to their own record">★ </span>' : ""}${esc(a.name)}${usable ? "" : "<small>Not used by the asks you picked</small>"}</span></label>`;
   };
   const { sug, rest } = angleOrder();
-  $("angBox").classList.toggle("hidden", !S.long); // arguments only go into Long messages
+  // Arguments go into Long emails and calls, and always into meetings (which have no Short/Long choice).
+  $("angBox").classList.toggle("hidden", !withArgs());
+  $("lenBox").classList.toggle("hidden", S.kind === "meeting");
   $("angBox").innerHTML = `<legend>Arguments ${esc(shortName(m))} might find persuasive</legend>` +
     sug.map(row).join("") + `<details><summary>More arguments (${rest.length})</summary>${rest.map(row).join("")}</details>`;
 }
@@ -291,6 +293,7 @@ function showAngleTip(label) {
   }
 }
 const hideAngleTip = () => { $("angTip").hidden = true; };
+const withArgs = () => S.long || S.kind === "meeting";
 // The page can come back with radios restored by the browser (reload, back button), so read them.
 function syncChoices() {
   S.kind = document.querySelector("input[name=kind]:checked")?.value || "email";
@@ -322,7 +325,7 @@ function renderRole() {
 function ctx() {
   const { sug, rest } = angleOrder();
   return {
-    m: S.sel, angles: D.angles, policies: S.policies, angleIds: S.long ? [...sug, ...rest].filter(id => S.angles.has(id)) : [], long: S.long,
+    m: S.sel, angles: D.angles, policies: S.policies, angleIds: withArgs() ? [...sug, ...rest].filter(id => S.angles.has(id)) : [], long: withArgs(),
     u: { name: $("uName").value.trim(), city: $("uCity").value.trim(), zip: $("uZip").value.trim(), note: $("uNote").value.trim() },
     localLine: $("localOn").checked ? $("localText").value.trim() : "",
     roleLine: $("roleOn").checked ? $("roleText").value.trim() : "",
@@ -477,7 +480,7 @@ function bind() {
   });
   $("distSel").addEventListener("change", e => { if (S.state) choose(S.state, parseInt(e.target.value, 10)); });
   $("cards").addEventListener("click", e => { const c = e.target.closest(".card"); if (c && !c.disabled) selectMember(S.members[+c.dataset.i]); });
-  document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener("change", e => { S.kind = e.target.value; render(); }));
+  document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener("change", e => { S.kind = e.target.value; renderAngles(); render(); }));
   document.querySelectorAll('input[name=len]').forEach(r => r.addEventListener("change", e => { S.long = e.target.value === "long"; renderAngles(); render(); }));
   $("polBox").addEventListener("change", e => { const p = e.target.dataset.p; if (!p) return; S.policies[p] = e.target.checked; renderPolicies(); renderAngles(); renderLocal(true); render(); });
   $("angBox").addEventListener("change", e => { const a = e.target.dataset.a; if (!a) return; e.target.checked ? S.angles.add(a) : S.angles.delete(a); render(); });
